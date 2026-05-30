@@ -23,10 +23,15 @@ CREATE TABLE venues (
   id uuid references auth.users primary key,
   name text,
   bio text,
+  street_address text,
   city text,
   state text,
+  zip_code text,
   capacity int,
+  phone text,
   website_url text,
+  show_email boolean default true,
+  show_phone boolean default false,
   profile_image text,
   created_at timestamp default now()
 );

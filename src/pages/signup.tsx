@@ -28,6 +28,13 @@ export default function SignupPage() {
   const [spotifyUrl, setSpotifyUrl] = useState('')
   const [youtubeUrl, setYoutubeUrl] = useState('')
   const [soundcloudUrl, setSoundcloudUrl] = useState('')
+  // Venue-specific
+  const [streetAddress, setStreetAddress] = useState('')
+  const [zipCode, setZipCode] = useState('')
+  const [phone, setPhone] = useState('')
+  const [venueWebsiteUrl, setVenueWebsiteUrl] = useState('')
+  const [showEmail, setShowEmail] = useState(true)
+  const [showPhone, setShowPhone] = useState(false)
   const [feeAgreed, setFeeAgreed] = useState(false)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -42,6 +49,10 @@ export default function SignupPage() {
 
     if (password !== confirmPassword) { setError('Passwords do not match.'); return }
     if (password.length < 6) { setError('Password must be at least 6 characters.'); return }
+    if (role === 'venue' && !showEmail && !phone) {
+      setError('Please provide at least one contact method for musicians to reach you.')
+      return
+    }
     if (!feeAgreed) { setError('You must agree to the 5% platform fee.'); return }
 
     setSubmitting(true)
@@ -73,8 +84,14 @@ export default function SignupPage() {
       const { error: insertError } = await supabase.from('venues').insert({
         id: userId,
         name,
+        street_address: streetAddress,
         city,
         state,
+        zip_code: zipCode,
+        phone: phone || null,
+        website_url: venueWebsiteUrl || null,
+        show_email: showEmail,
+        show_phone: showPhone,
       })
       if (insertError) { setError(insertError.message); setSubmitting(false); return }
     }
@@ -155,6 +172,13 @@ export default function SignupPage() {
                   />
                 </div>
 
+                {role === 'venue' && (
+                  <div>
+                    <label className={labelCls}>Street Address</label>
+                    <input type="text" required value={streetAddress} onChange={e => setStreetAddress(e.target.value)} placeholder="123 Main St" className={inputCls} />
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className={labelCls}>City</label>
@@ -165,6 +189,49 @@ export default function SignupPage() {
                     <input type="text" required value={state} onChange={e => setState(e.target.value)} placeholder="TX" maxLength={2} className={inputCls} />
                   </div>
                 </div>
+
+                {role === 'venue' && (
+                  <>
+                    <div>
+                      <label className={labelCls}>Zip Code</label>
+                      <input type="text" required value={zipCode} onChange={e => setZipCode(e.target.value)} placeholder="78701" className={inputCls} />
+                    </div>
+
+                    <div>
+                      <label className={labelCls}>Phone Number <span className="text-[#B3B3B3]/50">(optional)</span></label>
+                      <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="(512) 555-0123" className={inputCls} />
+                    </div>
+
+                    <div>
+                      <label className={labelCls}>Website URL <span className="text-[#B3B3B3]/50">(optional)</span></label>
+                      <input type="url" value={venueWebsiteUrl} onChange={e => setVenueWebsiteUrl(e.target.value)} placeholder="https://yourvenue.com" className={inputCls} />
+                    </div>
+
+                    <div className="pt-1">
+                      <p className="text-white font-semibold text-sm mb-3">Contact Preferences</p>
+                      <div className="space-y-3">
+                        <label className="flex items-center gap-3 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={showEmail}
+                            onChange={e => setShowEmail(e.target.checked)}
+                            className="w-4 h-4 accent-[#1DB954] flex-shrink-0"
+                          />
+                          <span className="text-[#B3B3B3] text-sm">Show my email publicly on my profile</span>
+                        </label>
+                        <label className="flex items-center gap-3 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={showPhone}
+                            onChange={e => setShowPhone(e.target.checked)}
+                            className="w-4 h-4 accent-[#1DB954] flex-shrink-0"
+                          />
+                          <span className="text-[#B3B3B3] text-sm">Show my phone number publicly on my profile</span>
+                        </label>
+                      </div>
+                    </div>
+                  </>
+                )}
 
                 {role === 'musician' && (
                   <>
