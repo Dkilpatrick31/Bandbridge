@@ -9,6 +9,7 @@ CREATE TABLE musicians (
   hourly_rate numeric,
   spotify_url text,
   youtube_url text,
+  soundcloud_url text,
   website_url text,
   profile_image text,
   is_available boolean default true,

@@ -27,6 +27,7 @@ export default function SignupPage() {
   const [hourlyRate, setHourlyRate] = useState('')
   const [spotifyUrl, setSpotifyUrl] = useState('')
   const [youtubeUrl, setYoutubeUrl] = useState('')
+  const [soundcloudUrl, setSoundcloudUrl] = useState('')
   const [feeAgreed, setFeeAgreed] = useState(false)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -65,6 +66,7 @@ export default function SignupPage() {
         hourly_rate: hourlyRate ? parseFloat(hourlyRate) : null,
         spotify_url: spotifyUrl || null,
         youtube_url: youtubeUrl || null,
+        soundcloud_url: soundcloudUrl || null,
       })
       if (insertError) { setError(insertError.message); setSubmitting(false); return }
     } else {
@@ -203,13 +205,18 @@ export default function SignupPage() {
                     </div>
 
                     <div>
-                      <label className={labelCls}>Spotify Artist URL</label>
+                      <label className={labelCls}>Spotify Artist URL <span className="text-[#B3B3B3]/50">(optional)</span></label>
                       <input type="url" value={spotifyUrl} onChange={e => setSpotifyUrl(e.target.value)} placeholder="https://open.spotify.com/artist/..." className={inputCls} />
                     </div>
 
                     <div>
-                      <label className={labelCls}>YouTube Video URL</label>
+                      <label className={labelCls}>YouTube Video URL <span className="text-[#B3B3B3]/50">(optional)</span></label>
                       <input type="url" value={youtubeUrl} onChange={e => setYoutubeUrl(e.target.value)} placeholder="https://youtube.com/watch?v=..." className={inputCls} />
+                    </div>
+
+                    <div>
+                      <label className={labelCls}>SoundCloud URL <span className="text-[#B3B3B3]/50">(optional)</span></label>
+                      <input type="url" value={soundcloudUrl} onChange={e => setSoundcloudUrl(e.target.value)} placeholder="https://soundcloud.com/your-profile" className={inputCls} />
                     </div>
                   </>
                 )}
