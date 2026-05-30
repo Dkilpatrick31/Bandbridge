@@ -2,7 +2,7 @@ import Head from 'next/head'
 import Link from 'next/link'
 import { useState, FormEvent } from 'react'
 import { useRouter } from 'next/router'
-import { Music2, Building2, Check, ArrowRight } from 'lucide-react'
+import { Music2, Building2, Calendar, Check, ArrowRight, Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { supabase } from '@/lib/supabase'
 
@@ -15,7 +15,7 @@ export default function SignupPage() {
   const router = useRouter()
   const { signUp } = useAuth()
 
-  const [role, setRole] = useState<'musician' | 'venue' | null>(null)
+  const [role, setRole] = useState<'musician' | 'venue' | 'host' | null>(null)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -28,6 +28,12 @@ export default function SignupPage() {
   const [spotifyUrl, setSpotifyUrl] = useState('')
   const [youtubeUrl, setYoutubeUrl] = useState('')
   const [soundcloudUrl, setSoundcloudUrl] = useState('')
+  // Host-specific
+  const [hostPhone, setHostPhone] = useState('')
+  const [hostEventType, setHostEventType] = useState('')
+  const [hostEventDate, setHostEventDate] = useState('')
+  const [hostBudget, setHostBudget] = useState('')
+  const [hostNotes, setHostNotes] = useState('')
   // Venue-specific
   const [streetAddress, setStreetAddress] = useState('')
   const [zipCode, setZipCode] = useState('')
@@ -35,6 +41,8 @@ export default function SignupPage() {
   const [venueWebsiteUrl, setVenueWebsiteUrl] = useState('')
   const [showEmail, setShowEmail] = useState(true)
   const [showPhone, setShowPhone] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [feeAgreed, setFeeAgreed] = useState(false)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -49,6 +57,7 @@ export default function SignupPage() {
 
     if (password !== confirmPassword) { setError('Passwords do not match.'); return }
     if (password.length < 6) { setError('Password must be at least 6 characters.'); return }
+    if (role === 'host' && !hostEventType) { setError('Please select an event type.'); return }
     if (role === 'venue' && !showEmail && !phone) {
       setError('Please provide at least one contact method for musicians to reach you.')
       return
@@ -80,6 +89,20 @@ export default function SignupPage() {
         soundcloud_url: soundcloudUrl || null,
       })
       if (insertError) { setError(insertError.message); setSubmitting(false); return }
+    } else if (role === 'host') {
+      const { error: insertError } = await supabase.from('event_hosts').insert({
+        id: userId,
+        full_name: name,
+        email,
+        phone: hostPhone || null,
+        city,
+        state,
+        event_type: hostEventType || null,
+        event_date: hostEventDate || null,
+        budget_range: hostBudget || null,
+        notes: hostNotes || null,
+      })
+      if (insertError) { setError(insertError.message); setSubmitting(false); return }
     } else {
       const { error: insertError } = await supabase.from('venues').insert({
         id: userId,
@@ -102,19 +125,22 @@ export default function SignupPage() {
   return (
     <>
       <Head>
-        <title>Join Band Bridge | Get Listed</title>
+        <title>Join BandBridge | Get Listed Free</title>
+        <meta property="og:title" content="Join BandBridge | Get Listed Free" />
+        <meta property="og:description" content="Create your free BandBridge profile as a musician, venue, or event host. Only 5% booking fee." />
       </Head>
       <div className="min-h-screen bg-[#121212] pt-24 pb-20">
-        <div className="max-w-2xl mx-auto px-4 sm:px-6">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-10">
             <h1 className="text-4xl font-black text-white mb-3">Join BandBridge</h1>
-            <p className="text-[#B3B3B3] text-lg">Are you a musician/band or a venue?</p>
+            <p className="text-[#B3B3B3] text-lg">Musician, venue, or planning a private event?</p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
             {([
               { key: 'musician', icon: Music2, title: "I'm a Musician / Band", desc: 'Get discovered, book more gigs, and get paid fairly.' },
               { key: 'venue', icon: Building2, title: "I'm a Venue", desc: 'Find the perfect artist for any night, any genre.' },
+              { key: 'host', icon: Calendar, title: "I'm an Event Host", desc: 'Planning a wedding, party, or private event? Find the perfect musician.' },
             ] as const).map(({ key, icon: Icon, title, desc }) => (
               <button
                 key={key}
@@ -150,24 +176,60 @@ export default function SignupPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className={labelCls}>Password</label>
-                    <input type="password" required value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" className={inputCls} />
+                    <div className="relative">
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        required
+                        value={password}
+                        onChange={e => setPassword(e.target.value)}
+                        placeholder="••••••••"
+                        className={`${inputCls} pr-10`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(v => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[#B3B3B3] hover:text-white transition-colors p-1"
+                        aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
                   </div>
                   <div>
                     <label className={labelCls}>Confirm Password</label>
-                    <input type="password" required value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="••••••••" className={inputCls} />
+                    <div className="relative">
+                      <input
+                        type={showConfirmPassword ? 'text' : 'password'}
+                        required
+                        value={confirmPassword}
+                        onChange={e => setConfirmPassword(e.target.value)}
+                        placeholder="••••••••"
+                        className={`${inputCls} pr-10`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(v => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[#B3B3B3] hover:text-white transition-colors p-1"
+                        aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
 
               <div className="bg-[#1E1E1E] rounded-2xl p-6 border border-white/5 space-y-4">
                 <h2 className="text-white font-bold text-lg">
-                  {role === 'musician' ? 'Musician Details' : 'Venue Details'}
+                  {role === 'musician' ? 'Musician Details' : role === 'venue' ? 'Venue Details' : 'Event Host Details'}
                 </h2>
 
                 <div>
-                  <label className={labelCls}>{role === 'musician' ? 'Stage Name / Band Name' : 'Venue Name'}</label>
+                  <label className={labelCls}>
+                    {role === 'musician' ? 'Stage Name / Band Name' : role === 'venue' ? 'Venue Name' : 'Full Name'}
+                  </label>
                   <input type="text" required value={name} onChange={e => setName(e.target.value)}
-                    placeholder={role === 'musician' ? 'e.g. The Midnight Riders' : 'e.g. The Rusty Nail Bar'}
+                    placeholder={role === 'musician' ? 'e.g. The Midnight Riders' : role === 'venue' ? 'e.g. The Rusty Nail Bar' : 'Jane Smith'}
                     className={inputCls}
                   />
                 </div>
@@ -229,6 +291,56 @@ export default function SignupPage() {
                           <span className="text-[#B3B3B3] text-sm">Show my phone number publicly on my profile</span>
                         </label>
                       </div>
+                    </div>
+                  </>
+                )}
+
+                {role === 'host' && (
+                  <>
+                    <div>
+                      <label className={labelCls}>Phone Number <span className="text-[#B3B3B3]/50">(optional)</span></label>
+                      <input type="tel" value={hostPhone} onChange={e => setHostPhone(e.target.value)} placeholder="(512) 555-0123" className={inputCls} />
+                    </div>
+
+                    <div>
+                      <label className={labelCls}>Event Type</label>
+                      <select
+                        required
+                        value={hostEventType}
+                        onChange={e => setHostEventType(e.target.value)}
+                        className={inputCls}
+                      >
+                        <option value="" disabled>Select event type…</option>
+                        {['Wedding', 'Birthday Party', 'Corporate Event', 'Private Party', 'Anniversary', 'Graduation', 'Holiday Party', 'Other'].map(t => (
+                          <option key={t} value={t}>{t}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className={labelCls}>Approximate Event Date <span className="text-[#B3B3B3]/50">(optional)</span></label>
+                      <input type="date" value={hostEventDate} onChange={e => setHostEventDate(e.target.value)} className={inputCls} />
+                    </div>
+
+                    <div>
+                      <label className={labelCls}>Approximate Budget <span className="text-[#B3B3B3]/50">(optional)</span></label>
+                      <select value={hostBudget} onChange={e => setHostBudget(e.target.value)} className={inputCls}>
+                        <option value="">Select a range…</option>
+                        {['Under $500', '$500 - $1,000', '$1,000 - $2,500', '$2,500 - $5,000', '$5,000+'].map(b => (
+                          <option key={b} value={b}>{b}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className={labelCls}>Additional Notes <span className="text-[#B3B3B3]/50">(optional)</span></label>
+                      <textarea
+                        value={hostNotes}
+                        onChange={e => setHostNotes(e.target.value)}
+                        rows={3}
+                        placeholder="Tell musicians about your event..."
+                        className="w-full bg-[#282828] border border-white/10 text-white placeholder-[#B3B3B3]/50 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#1DB954]/50 resize-none"
+                      />
                     </div>
                   </>
                 )}

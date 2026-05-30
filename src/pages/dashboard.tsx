@@ -2,7 +2,7 @@ import Head from 'next/head'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
-import { Music2, Building2, MapPin, DollarSign, Edit2, LogOut, CalendarX2 } from 'lucide-react'
+import { Music2, Building2, Calendar, MapPin, DollarSign, Edit2, LogOut, CalendarX2 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { supabase } from '@/lib/supabase'
 
@@ -28,40 +28,63 @@ interface VenueProfile {
   website_url: string | null
 }
 
+interface HostProfile {
+  full_name: string
+  city: string
+  state: string
+  event_type: string | null
+  event_date: string | null
+  budget_range: string | null
+  notes: string | null
+}
+
+type Role = 'musician' | 'venue' | 'host'
+type AnyProfile = MusicianProfile | VenueProfile | HostProfile
+
+const ROLE_ICONS: Record<Role, React.ReactNode> = {
+  musician: <Music2 className="w-6 h-6 text-black" />,
+  venue:    <Building2 className="w-6 h-6 text-black" />,
+  host:     <Calendar className="w-6 h-6 text-black" />,
+}
+
 export default function DashboardPage() {
   const router = useRouter()
   const { user, loading, signOut } = useAuth()
-  const [profile, setProfile] = useState<MusicianProfile | VenueProfile | null>(null)
-  const [role, setRole] = useState<'musician' | 'venue' | null>(null)
+  const [profile, setProfile] = useState<AnyProfile | null>(null)
+  const [role, setRole] = useState<Role | null>(null)
   const [profileLoading, setProfileLoading] = useState(true)
 
   useEffect(() => {
-    if (!loading && !user) {
-      router.replace('/login')
-    }
+    if (!loading && !user) router.replace('/login')
   }, [user, loading, router])
 
   useEffect(() => {
     if (!user) return
-
     async function fetchProfile() {
       setProfileLoading(true)
-      const userRole = user!.user_metadata?.role as 'musician' | 'venue' | undefined
+      const userRole = user!.user_metadata?.role as Role | undefined
 
       if (userRole === 'venue') {
         const { data } = await supabase.from('venues').select('*').eq('id', user!.id).single()
-        if (data) { setRole('venue'); setProfile(data) }
+        if (data) { setRole('venue'); setProfile(data); setProfileLoading(false); return }
+      } else if (userRole === 'host') {
+        const { data } = await supabase.from('event_hosts').select('*').eq('id', user!.id).single()
+        if (data) { setRole('host'); setProfile(data); setProfileLoading(false); return }
       } else {
         const { data } = await supabase.from('musicians').select('*').eq('id', user!.id).single()
-        if (data) { setRole('musician'); setProfile(data) }
-        else {
-          const { data: venueData } = await supabase.from('venues').select('*').eq('id', user!.id).single()
-          if (venueData) { setRole('venue'); setProfile(venueData) }
-        }
+        if (data) { setRole('musician'); setProfile(data); setProfileLoading(false); return }
       }
+
+      // Fallback: probe all tables if metadata is missing
+      const { data: m } = await supabase.from('musicians').select('*').eq('id', user!.id).single()
+      if (m) { setRole('musician'); setProfile(m); setProfileLoading(false); return }
+      const { data: v } = await supabase.from('venues').select('*').eq('id', user!.id).single()
+      if (v) { setRole('venue'); setProfile(v); setProfileLoading(false); return }
+      const { data: h } = await supabase.from('event_hosts').select('*').eq('id', user!.id).single()
+      if (h) { setRole('host'); setProfile(h) }
+
       setProfileLoading(false)
     }
-
     fetchProfile()
   }, [user])
 
@@ -88,8 +111,16 @@ export default function DashboardPage() {
   if (!user) return null
 
   const musicianProfile = role === 'musician' ? profile as MusicianProfile : null
-  const venueProfile = role === 'venue' ? profile as VenueProfile : null
-  const displayName = musicianProfile?.stage_name ?? venueProfile?.name ?? user.email
+  const venueProfile    = role === 'venue'    ? profile as VenueProfile    : null
+  const hostProfile     = role === 'host'     ? profile as HostProfile     : null
+
+  const displayName =
+    musicianProfile?.stage_name ??
+    venueProfile?.name ??
+    hostProfile?.full_name ??
+    user.email
+
+  const roleLabel = role === 'host' ? 'Event Host' : role ?? 'User'
 
   return (
     <>
@@ -101,15 +132,13 @@ export default function DashboardPage() {
 
           {/* Header */}
           <div className="flex items-start justify-between mb-8 flex-wrap gap-4">
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-12 h-12 bg-[#1DB954] rounded-xl flex items-center justify-center">
-                  {role === 'musician' ? <Music2 className="w-6 h-6 text-black" /> : <Building2 className="w-6 h-6 text-black" />}
-                </div>
-                <div>
-                  <h1 className="text-2xl font-black text-white">{displayName}</h1>
-                  <span className="text-[#1DB954] text-sm font-semibold capitalize">{role ?? 'User'}</span>
-                </div>
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-[#1DB954] rounded-xl flex items-center justify-center">
+                {role ? ROLE_ICONS[role] : <Music2 className="w-6 h-6 text-black" />}
+              </div>
+              <div>
+                <h1 className="text-2xl font-black text-white">{displayName}</h1>
+                <span className="text-[#1DB954] text-sm font-semibold capitalize">{roleLabel}</span>
               </div>
             </div>
             <button
@@ -121,113 +150,198 @@ export default function DashboardPage() {
             </button>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Profile Card */}
-            <div className="lg:col-span-2 bg-[#1E1E1E] rounded-2xl p-6 border border-white/5">
-              <div className="flex items-center justify-between mb-5">
-                <h2 className="text-white font-bold text-lg">Profile</h2>
-                <Link
-                  href="/profile/edit"
-                  className="flex items-center gap-1.5 text-[#1DB954] hover:text-[#1ed760] text-sm font-medium transition-colors"
-                >
-                  <Edit2 className="w-3.5 h-3.5" />
-                  Edit Profile
-                </Link>
-              </div>
-
-              {profile ? (
-                <div className="space-y-4">
-                  {(musicianProfile?.bio || venueProfile?.bio) && (
-                    <p className="text-[#B3B3B3] text-sm leading-relaxed">
-                      {musicianProfile?.bio ?? venueProfile?.bio}
-                    </p>
-                  )}
-
-                  <div className="flex flex-wrap gap-4 text-sm">
-                    {(musicianProfile?.city || venueProfile?.city) && (
-                      <div className="flex items-center gap-1.5 text-[#B3B3B3]">
-                        <MapPin className="w-4 h-4 text-[#1DB954]" />
-                        {musicianProfile?.city ?? venueProfile?.city}, {musicianProfile?.state ?? venueProfile?.state}
-                      </div>
-                    )}
-                    {musicianProfile?.hourly_rate && (
-                      <div className="flex items-center gap-1.5 text-[#B3B3B3]">
-                        <DollarSign className="w-4 h-4 text-[#1DB954]" />
-                        ${musicianProfile.hourly_rate}/hr
-                      </div>
-                    )}
+          {/* ── HOST DASHBOARD ── */}
+          {role === 'host' && (
+            <>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                {/* Event details card */}
+                <div className="lg:col-span-2 bg-[#1E1E1E] rounded-2xl p-6 border border-white/5">
+                  <div className="flex items-center justify-between mb-5">
+                    <h2 className="text-white font-bold text-lg">Your Event</h2>
+                    <Link
+                      href="/profile/edit"
+                      className="flex items-center gap-1.5 text-[#1DB954] hover:text-[#1ed760] text-sm font-medium transition-colors"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                      Edit Event Details
+                    </Link>
                   </div>
 
-                  {musicianProfile && musicianProfile.genre?.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                      {musicianProfile.genre.map(g => (
-                        <span key={g} className="bg-[#282828] text-[#B3B3B3] px-3 py-1 rounded-full text-xs font-medium">
-                          {g}
-                        </span>
-                      ))}
-                    </div>
-                  )}
+                  {hostProfile ? (
+                    <div className="space-y-4">
+                      <div className="flex flex-wrap gap-4">
+                        {hostProfile.city && (
+                          <div className="flex items-center gap-1.5 text-[#B3B3B3] text-sm">
+                            <MapPin className="w-4 h-4 text-[#1DB954]" />
+                            {hostProfile.city}, {hostProfile.state}
+                          </div>
+                        )}
+                        {hostProfile.event_type && (
+                          <div className="flex items-center gap-1.5 text-[#B3B3B3] text-sm">
+                            <Calendar className="w-4 h-4 text-[#1DB954]" />
+                            {hostProfile.event_type}
+                          </div>
+                        )}
+                        {hostProfile.budget_range && (
+                          <div className="flex items-center gap-1.5 text-[#B3B3B3] text-sm">
+                            <DollarSign className="w-4 h-4 text-[#1DB954]" />
+                            {hostProfile.budget_range}
+                          </div>
+                        )}
+                      </div>
 
-                  {musicianProfile && (musicianProfile.spotify_url || musicianProfile.youtube_url) && (
-                    <div className="flex gap-3">
-                      {musicianProfile.spotify_url && (
-                        <a href={musicianProfile.spotify_url} target="_blank" rel="noopener noreferrer"
-                          className="text-[#1DB954] text-sm hover:underline">Spotify</a>
+                      {hostProfile.event_date && (
+                        <div className="bg-[#282828] rounded-xl px-4 py-3 text-sm">
+                          <span className="text-[#B3B3B3]">Event Date: </span>
+                          <span className="text-white font-medium">
+                            {new Date(hostProfile.event_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                          </span>
+                        </div>
                       )}
-                      {musicianProfile.youtube_url && (
-                        <a href={musicianProfile.youtube_url} target="_blank" rel="noopener noreferrer"
-                          className="text-[#1DB954] text-sm hover:underline">YouTube</a>
+
+                      {hostProfile.notes && (
+                        <div>
+                          <p className="text-[#B3B3B3] text-xs uppercase tracking-wider mb-1.5">Notes</p>
+                          <p className="text-[#B3B3B3] text-sm leading-relaxed">{hostProfile.notes}</p>
+                        </div>
                       )}
                     </div>
-                  )}
-
-                  {venueProfile?.capacity && (
-                    <p className="text-[#B3B3B3] text-sm">Capacity: <span className="text-white">{venueProfile.capacity}</span></p>
+                  ) : (
+                    <div className="text-center py-8">
+                      <p className="text-[#B3B3B3] text-sm mb-4">Your event details aren&apos;t set up yet.</p>
+                      <Link href="/profile/edit" className="bg-[#1DB954] text-black font-bold px-5 py-2 rounded-full text-sm hover:bg-[#1ed760] transition-colors">
+                        Add Event Details
+                      </Link>
+                    </div>
                   )}
                 </div>
-              ) : (
-                <div className="text-center py-8">
-                  <p className="text-[#B3B3B3] text-sm mb-4">Your profile isn&apos;t set up yet.</p>
-                  <Link href="/profile/edit" className="bg-[#1DB954] text-black font-bold px-5 py-2 rounded-full text-sm hover:bg-[#1ed760] transition-colors">
-                    Set Up Profile
+
+                {/* Sidebar */}
+                <div className="space-y-4">
+                  <div className="bg-[#1E1E1E] rounded-2xl p-6 border border-[#1DB954]/20">
+                    <h3 className="text-white font-bold text-base mb-2">Find Your Musician</h3>
+                    <p className="text-[#B3B3B3] text-sm mb-4">Browse available artists and bands. Only 5% booking fee.</p>
+                    <Link
+                      href="/musicians"
+                      className="block w-full bg-[#1DB954] hover:bg-[#1ed760] text-black font-bold text-center py-3 rounded-full transition-all hover:scale-105 text-sm"
+                    >
+                      Browse Musicians
+                    </Link>
+                  </div>
+
+                  <div className="bg-[#1E1E1E] rounded-2xl p-5 border border-white/5">
+                    <h3 className="text-white font-bold text-sm mb-3">Account</h3>
+                    <p className="text-[#B3B3B3] text-xs break-all">{user.email}</p>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* ── MUSICIAN / VENUE DASHBOARD ── */}
+          {role !== 'host' && (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Profile Card */}
+              <div className="lg:col-span-2 bg-[#1E1E1E] rounded-2xl p-6 border border-white/5">
+                <div className="flex items-center justify-between mb-5">
+                  <h2 className="text-white font-bold text-lg">Profile</h2>
+                  <Link
+                    href="/profile/edit"
+                    className="flex items-center gap-1.5 text-[#1DB954] hover:text-[#1ed760] text-sm font-medium transition-colors"
+                  >
+                    <Edit2 className="w-3.5 h-3.5" />
+                    Edit Profile
                   </Link>
                 </div>
-              )}
-            </div>
 
-            {/* Sidebar */}
-            <div className="space-y-4">
-              {/* Availability toggle (musicians only) */}
-              {role === 'musician' && musicianProfile && (
-                <div className="bg-[#1E1E1E] rounded-2xl p-5 border border-white/5">
-                  <h3 className="text-white font-bold text-sm mb-3">Availability</h3>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[#B3B3B3] text-sm">
-                      {musicianProfile.is_available ? 'Available for booking' : 'Not available'}
-                    </span>
-                    <button
-                      onClick={toggleAvailability}
-                      className={`relative w-11 h-6 rounded-full transition-colors ${
-                        musicianProfile.is_available ? 'bg-[#1DB954]' : 'bg-[#282828]'
-                      }`}
-                    >
-                      <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
-                        musicianProfile.is_available ? 'translate-x-5' : 'translate-x-0'
-                      }`} />
-                    </button>
+                {profile ? (
+                  <div className="space-y-4">
+                    {(musicianProfile?.bio || venueProfile?.bio) && (
+                      <p className="text-[#B3B3B3] text-sm leading-relaxed">
+                        {musicianProfile?.bio ?? venueProfile?.bio}
+                      </p>
+                    )}
+
+                    <div className="flex flex-wrap gap-4 text-sm">
+                      {(musicianProfile?.city || venueProfile?.city) && (
+                        <div className="flex items-center gap-1.5 text-[#B3B3B3]">
+                          <MapPin className="w-4 h-4 text-[#1DB954]" />
+                          {musicianProfile?.city ?? venueProfile?.city}, {musicianProfile?.state ?? venueProfile?.state}
+                        </div>
+                      )}
+                      {musicianProfile?.hourly_rate && (
+                        <div className="flex items-center gap-1.5 text-[#B3B3B3]">
+                          <DollarSign className="w-4 h-4 text-[#1DB954]" />
+                          ${musicianProfile.hourly_rate}/hr
+                        </div>
+                      )}
+                    </div>
+
+                    {musicianProfile && musicianProfile.genre?.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {musicianProfile.genre.map(g => (
+                          <span key={g} className="bg-[#282828] text-[#B3B3B3] px-3 py-1 rounded-full text-xs font-medium">
+                            {g}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    {musicianProfile && (musicianProfile.spotify_url || musicianProfile.youtube_url) && (
+                      <div className="flex gap-3">
+                        {musicianProfile.spotify_url && (
+                          <a href={musicianProfile.spotify_url} target="_blank" rel="noopener noreferrer"
+                            className="text-[#1DB954] text-sm hover:underline">Spotify</a>
+                        )}
+                        {musicianProfile.youtube_url && (
+                          <a href={musicianProfile.youtube_url} target="_blank" rel="noopener noreferrer"
+                            className="text-[#1DB954] text-sm hover:underline">YouTube</a>
+                        )}
+                      </div>
+                    )}
+
+                    {venueProfile?.capacity && (
+                      <p className="text-[#B3B3B3] text-sm">Capacity: <span className="text-white">{venueProfile.capacity}</span></p>
+                    )}
                   </div>
-                </div>
-              )}
+                ) : (
+                  <div className="text-center py-8">
+                    <p className="text-[#B3B3B3] text-sm mb-4">Your profile isn&apos;t set up yet.</p>
+                    <Link href="/profile/edit" className="bg-[#1DB954] text-black font-bold px-5 py-2 rounded-full text-sm hover:bg-[#1ed760] transition-colors">
+                      Set Up Profile
+                    </Link>
+                  </div>
+                )}
+              </div>
 
-              {/* Account info */}
-              <div className="bg-[#1E1E1E] rounded-2xl p-5 border border-white/5">
-                <h3 className="text-white font-bold text-sm mb-3">Account</h3>
-                <p className="text-[#B3B3B3] text-xs break-all">{user.email}</p>
+              {/* Sidebar */}
+              <div className="space-y-4">
+                {role === 'musician' && musicianProfile && (
+                  <div className="bg-[#1E1E1E] rounded-2xl p-5 border border-white/5">
+                    <h3 className="text-white font-bold text-sm mb-3">Availability</h3>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[#B3B3B3] text-sm">
+                        {musicianProfile.is_available ? 'Available for booking' : 'Not available'}
+                      </span>
+                      <button
+                        onClick={toggleAvailability}
+                        className={`relative w-11 h-6 rounded-full transition-colors ${musicianProfile.is_available ? 'bg-[#1DB954]' : 'bg-[#282828]'}`}
+                      >
+                        <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${musicianProfile.is_available ? 'translate-x-5' : 'translate-x-0'}`} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                <div className="bg-[#1E1E1E] rounded-2xl p-5 border border-white/5">
+                  <h3 className="text-white font-bold text-sm mb-3">Account</h3>
+                  <p className="text-[#B3B3B3] text-xs break-all">{user.email}</p>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
-          {/* Recent Bookings (placeholder) */}
+          {/* Recent Bookings placeholder */}
           <div className="mt-6 bg-[#1E1E1E] rounded-2xl p-6 border border-white/5">
             <h2 className="text-white font-bold text-lg mb-4">Recent Bookings</h2>
             <div className="text-center py-12 text-[#B3B3B3]">

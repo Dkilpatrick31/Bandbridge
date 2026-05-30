@@ -18,8 +18,10 @@ export default function MusiciansPage() {
   return (
     <>
       <Head>
-        <title>Find Musicians | Band Bridge</title>
+        <title>Find Musicians | BandBridge</title>
         <meta name="description" content="Browse available artists and bands ready to play your venue." />
+        <meta property="og:title" content="Find Musicians | BandBridge" />
+        <meta property="og:description" content="Browse available artists and bands ready to play your venue. Filter by genre, city, and availability." />
       </Head>
       <div className="min-h-screen bg-[#121212] pt-24 pb-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -34,12 +36,12 @@ export default function MusiciansPage() {
               <input
                 type="text"
                 placeholder="Search by name, genre, or city..."
-                className="w-full bg-[#1E1E1E] border border-white/10 text-white placeholder-[#B3B3B3] rounded-xl pl-11 pr-4 py-3 text-sm focus:outline-none focus:border-[#1DB954]/50"
+                className="w-full bg-[#1E1E1E] border border-white/10 text-white placeholder-[#B3B3B3] rounded-xl pl-11 pr-4 py-3 text-sm focus:outline-none focus:border-[#1DB954]/50 min-h-[44px]"
               />
             </div>
-            <button className="flex items-center gap-2 bg-[#1E1E1E] border border-white/10 text-[#B3B3B3] hover:text-white px-5 py-3 rounded-xl text-sm font-medium transition-colors">
-              <SlidersHorizontal className="w-4 h-4" />
-              Filters
+            <button className="flex items-center justify-center gap-2 bg-[#1E1E1E] border border-white/10 text-[#B3B3B3] hover:text-white px-5 py-3 rounded-xl text-sm font-medium transition-colors min-h-[44px]">
+              <SlidersHorizontal className="w-4 h-4 flex-shrink-0" />
+              <span>Filters</span>
             </button>
           </div>
 

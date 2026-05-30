@@ -2,7 +2,7 @@ import Head from 'next/head'
 import Link from 'next/link'
 import { useState, useEffect, FormEvent } from 'react'
 import { useRouter } from 'next/router'
-import { Music2 } from 'lucide-react'
+import { Music2, Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 
 export default function LoginPage() {
@@ -10,6 +10,7 @@ export default function LoginPage() {
   const { signIn, user, loading } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
@@ -45,7 +46,7 @@ export default function LoginPage() {
             <p className="text-[#B3B3B3]">Sign in to your BandBridge account</p>
           </div>
 
-          <div className="bg-[#1E1E1E] rounded-2xl p-8 border border-white/5">
+          <div className="bg-[#1E1E1E] rounded-2xl p-6 sm:p-8 border border-white/5">
             <form onSubmit={handleSubmit} className="space-y-5">
               <div>
                 <label className="text-[#B3B3B3] text-sm mb-1.5 block">Email</label>
@@ -55,20 +56,30 @@ export default function LoginPage() {
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   placeholder="your@email.com"
-                  className="w-full bg-[#282828] border border-white/10 text-white placeholder-[#B3B3B3]/50 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#1DB954]/50"
+                  className="w-full bg-[#282828] border border-white/10 text-white placeholder-[#B3B3B3]/50 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#1DB954]/50 min-h-[48px]"
                 />
               </div>
 
               <div>
                 <label className="text-[#B3B3B3] text-sm mb-1.5 block">Password</label>
-                <input
-                  type="password"
-                  required
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full bg-[#282828] border border-white/10 text-white placeholder-[#B3B3B3]/50 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#1DB954]/50"
-                />
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full bg-[#282828] border border-white/10 text-white placeholder-[#B3B3B3]/50 rounded-xl px-4 py-3 pr-10 text-sm focus:outline-none focus:border-[#1DB954]/50 min-h-[48px]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(v => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#B3B3B3] hover:text-white transition-colors p-1"
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
               </div>
 
               {error && (
@@ -80,7 +91,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full bg-[#1DB954] hover:bg-[#1ed760] disabled:opacity-50 disabled:cursor-not-allowed text-black font-bold py-3.5 rounded-full transition-all hover:scale-105 text-sm"
+                className="w-full bg-[#1DB954] hover:bg-[#1ed760] disabled:opacity-50 disabled:cursor-not-allowed text-black font-bold py-3.5 rounded-full transition-all hover:scale-105 text-sm min-h-[48px]"
               >
                 {submitting ? 'Signing in…' : 'Sign In'}
               </button>
