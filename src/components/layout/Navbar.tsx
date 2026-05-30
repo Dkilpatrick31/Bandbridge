@@ -1,10 +1,18 @@
-"use client";
 import Link from "next/link";
+import { useRouter } from "next/router";
 import { useState } from "react";
-import { Music2, Menu, X } from "lucide-react";
+import { Music2, Menu, X, LayoutDashboard, LogOut } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 export default function Navbar() {
+  const router = useRouter()
+  const { user, signOut } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false);
+
+  async function handleSignOut() {
+    await signOut()
+    router.push('/')
+  }
 
   return (
     <nav className="fixed top-0 w-full z-50 bg-[#121212]/90 backdrop-blur-md border-b border-white/10">
@@ -26,8 +34,26 @@ export default function Navbar() {
           </div>
 
           <div className="hidden md:flex items-center gap-3">
-            <Link href="/login" className="text-[#B3B3B3] hover:text-white transition-colors text-sm font-medium px-4 py-2">Log In</Link>
-            <Link href="/onboarding" className="bg-[#1DB954] hover:bg-[#1ed760] text-black font-semibold text-sm px-5 py-2 rounded-full transition-all hover:scale-105">Get Listed</Link>
+            {user ? (
+              <>
+                <Link href="/dashboard" className="flex items-center gap-1.5 text-[#B3B3B3] hover:text-white transition-colors text-sm font-medium px-4 py-2">
+                  <LayoutDashboard className="w-4 h-4" />
+                  Dashboard
+                </Link>
+                <button
+                  onClick={handleSignOut}
+                  className="flex items-center gap-1.5 bg-[#1E1E1E] hover:bg-[#282828] border border-white/10 text-[#B3B3B3] hover:text-white text-sm font-medium px-4 py-2 rounded-full transition-all"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Log Out
+                </button>
+              </>
+            ) : (
+              <>
+                <Link href="/login" className="text-[#B3B3B3] hover:text-white transition-colors text-sm font-medium px-4 py-2">Log In</Link>
+                <Link href="/signup" className="bg-[#1DB954] hover:bg-[#1ed760] text-black font-semibold text-sm px-5 py-2 rounded-full transition-all hover:scale-105">Get Listed</Link>
+              </>
+            )}
           </div>
 
           <button className="md:hidden text-white p-2" onClick={() => setMenuOpen(!menuOpen)}>
@@ -41,8 +67,20 @@ export default function Navbar() {
           <Link href="/musicians" className="text-[#B3B3B3] hover:text-white text-sm font-medium" onClick={() => setMenuOpen(false)}>Find Musicians</Link>
           <Link href="/venues" className="text-[#B3B3B3] hover:text-white text-sm font-medium" onClick={() => setMenuOpen(false)}>Venues</Link>
           <Link href="/how-it-works" className="text-[#B3B3B3] hover:text-white text-sm font-medium" onClick={() => setMenuOpen(false)}>How It Works</Link>
-          <Link href="/login" className="text-[#B3B3B3] hover:text-white text-sm font-medium" onClick={() => setMenuOpen(false)}>Log In</Link>
-          <Link href="/onboarding" className="bg-[#1DB954] text-black font-semibold text-sm px-5 py-2 rounded-full text-center" onClick={() => setMenuOpen(false)}>Get Listed</Link>
+          {user ? (
+            <>
+              <Link href="/dashboard" className="text-[#B3B3B3] hover:text-white text-sm font-medium" onClick={() => setMenuOpen(false)}>Dashboard</Link>
+              <button onClick={() => { setMenuOpen(false); handleSignOut() }}
+                className="bg-[#1E1E1E] border border-white/10 text-[#B3B3B3] font-semibold text-sm px-5 py-2 rounded-full text-center">
+                Log Out
+              </button>
+            </>
+          ) : (
+            <>
+              <Link href="/login" className="text-[#B3B3B3] hover:text-white text-sm font-medium" onClick={() => setMenuOpen(false)}>Log In</Link>
+              <Link href="/signup" className="bg-[#1DB954] text-black font-semibold text-sm px-5 py-2 rounded-full text-center" onClick={() => setMenuOpen(false)}>Get Listed</Link>
+            </>
+          )}
         </div>
       )}
     </nav>
