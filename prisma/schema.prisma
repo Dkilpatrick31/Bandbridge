@@ -1,0 +1,109 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  role          Role      @default(MUSICIAN)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  musician      Musician?
+  venue         Venue?
+}
+
+enum Role {
+  MUSICIAN
+  VENUE
+  ADMIN
+}
+
+model Musician {
+  id              String    @id @default(cuid())
+  userId          String    @unique
+  user            User      @relation(fields: [userId], references: [id])
+  stageName       String
+  bio             String?
+  genre           Genre[]
+  city            String
+  state           String
+  hourlyRate      Float?
+  bookingRate     Float     @default(0.05)
+  stripeAccountId String?
+  websiteUrl      String?
+  spotifyUrl      String?
+  youtubeUrl      String?
+  profileImage    String?
+  isAvailable     Boolean   @default(true)
+  isVerified      Boolean   @default(false)
+  bookings        Booking[]
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model Venue {
+  id           String    @id @default(cuid())
+  userId       String    @unique
+  user         User      @relation(fields: [userId], references: [id])
+  name         String
+  bio          String?
+  city         String
+  state        String
+  capacity     Int?
+  websiteUrl   String?
+  profileImage String?
+  bookings     Booking[]
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model Booking {
+  id           String        @id @default(cuid())
+  musicianId   String
+  musician     Musician      @relation(fields: [musicianId], references: [id])
+  venueId      String
+  venue        Venue         @relation(fields: [venueId], references: [id])
+  eventDate    DateTime
+  startTime    String
+  endTime      String
+  totalAmount  Float
+  platformFee  Float
+  status       BookingStatus @default(PENDING)
+  notes        String?
+  stripePaymentIntentId String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+enum Genre {
+  EDM
+  DJ
+  RAP
+  HIP_HOP
+  COUNTRY
+  ROCK
+  POP
+  JAZZ
+  BLUES
+  FOLK
+  INDIE
+  RNB
+  LATIN
+  METAL
+  PUNK
+  CLASSICAL
+  OTHER
+}
