@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { useState } from "react";
-import { Menu, X, LayoutDashboard, LogOut } from "lucide-react";
+import { Music2, Menu, X, LayoutDashboard, LogOut } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
 const NAV_LINKS = [
@@ -30,11 +30,9 @@ export default function Navbar() {
         <div className="flex items-center justify-between h-16">
 
           <Link href="/" className="flex items-center gap-2 group flex-shrink-0">
-            <img
-              src="/logo.png"
-              alt="BandBridge"
-              className="h-7 sm:h-8 w-auto group-hover:scale-110 transition-transform"
-            />
+            <div className="w-7 h-7 sm:w-8 sm:h-8 bg-[#1DB954] rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
+              <Music2 className="w-4 h-4 sm:w-5 sm:h-5 text-black" />
+            </div>
             <span className="text-white font-bold text-lg sm:text-xl tracking-tight">
               Band<span className="text-[#1DB954]">Bridge</span>
             </span>

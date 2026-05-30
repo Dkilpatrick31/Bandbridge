@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Music2 } from "lucide-react";
 
 export default function Footer() {
   return (
@@ -7,7 +8,9 @@ export default function Footer() {
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 sm:gap-10">
           <div className="sm:col-span-2">
             <Link href="/" className="flex items-center gap-2 mb-4">
-              <img src="/logo.png" alt="BandBridge" className="h-8 w-auto" />
+              <div className="w-8 h-8 bg-[#1DB954] rounded-lg flex items-center justify-center">
+                <Music2 className="w-5 h-5 text-black" />
+              </div>
               <span className="text-white font-bold text-xl">Band<span className="text-[#1DB954]">Bridge</span></span>
             </Link>
             <p className="text-[#B3B3B3] text-sm leading-relaxed max-w-sm">
