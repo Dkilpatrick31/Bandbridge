@@ -1,79 +1,49 @@
 import Head from 'next/head'
 import Link from 'next/link'
 import { useState, useEffect, ReactNode } from 'react'
-import { MapPin, Music2, Building2, Flame, ExternalLink } from 'lucide-react'
-import HeroPanel, { type FeedMusician } from './HeroPanel'
+import { Music2, Building2 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
-
-interface FeedVenue {
-  id: string
-  name: string | null
-  bio: string | null
-  city: string | null
-  state: string | null
-  capacity: number | null
-  profile_image: string | null
-}
-
-interface FeedData {
-  featured: FeedMusician[]
-  recentMusicians: FeedMusician[]
-  recentVenues: FeedVenue[]
-  trending: FeedMusician[]
-  withMedia: FeedMusician[]
-}
-
-const GENRES = ['All', 'Rock', 'Pop', 'Country', 'Jazz', 'Blues', 'R&B', 'Hip-Hop', 'EDM', 'Latin', 'Folk', 'Indie', 'Classical']
-
-function normalizeGenre(g: string) {
-  return g.toLowerCase().replace(/[_\s]+/g, '-')
-}
-
-function getYoutubeThumbnail(url: string | null): string | null {
-  if (!url) return null
-  const m = url.match(/(?:embed\/|watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/)
-  return m ? `https://img.youtube.com/vi/${m[1]}/mqdefault.jpg` : null
-}
-
-// ─── Skeleton card ────────────────────────────────────────────────────────────
-function SkeletonCard() {
-  return (
-    <div className="min-w-[220px] sm:min-w-[260px] flex-shrink-0 rounded-2xl bg-[#1E1E1E] border border-white/5 overflow-hidden animate-pulse">
-      <div className="h-36 bg-[#282828]" />
-      <div className="p-4 space-y-2.5">
-        <div className="h-4 bg-[#282828] rounded w-3/4" />
-        <div className="h-3 bg-[#282828] rounded w-1/2" />
-        <div className="h-3 bg-[#282828] rounded w-1/3" />
-        <div className="h-8 bg-[#282828] rounded-full mt-3" />
-      </div>
-    </div>
-  )
-}
-
-function SkeletonHero() {
-  return (
-    <div className="h-[420px] sm:h-[520px] rounded-2xl bg-[#1E1E1E] animate-pulse mb-8" />
-  )
-}
+import { supabase } from '@/lib/supabase'
+import HeroPanel from './HeroPanel'
+import { MusicianCard, VenueCard, FeedCardSkeleton } from './FeedCard'
+import {
+  GENRE_LABELS, GENRE_COLORS, normalizeGenre,
+  type FeedMusician, type FeedVenue, type FeedData, type HeroProfile,
+} from './types'
 
 // ─── Genre filter ─────────────────────────────────────────────────────────────
 function GenreFilter({ selected, onSelect }: { selected: string; onSelect: (g: string) => void }) {
   return (
-    <div className="flex gap-2 overflow-x-auto pb-2 mb-8 scrollbar-hide">
-      {GENRES.map(genre => {
-        const key = normalizeGenre(genre)
+    <div className="feed-row scrollbar-hide mb-8">
+      {GENRE_LABELS.map(label => {
+        const key = normalizeGenre(label)
         const active = selected === key
+        const color = GENRE_COLORS[key] ?? '#1DB954'
         return (
           <button
-            key={genre}
+            key={label}
             onClick={() => onSelect(key)}
-            className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-semibold border transition-all ${
+            className="genre-pill flex-shrink-0 px-4 py-2 rounded-full text-xs border"
+            style={
               active
-                ? 'bg-[#1DB954] border-[#1DB954] text-black'
-                : 'bg-[#1E1E1E] border-white/10 text-[#B3B3B3] hover:border-white/30 hover:text-white'
-            }`}
+                ? {
+                    ['--pill-glow' as string]: `${color}70`,
+                    backgroundColor: `${color}22`,
+                    borderColor: color,
+                    color,
+                  }
+                : {
+                    ['--pill-glow' as string]: `${color}70`,
+                    backgroundColor: '#1A1A1A',
+                    borderColor: '#2A2A2A',
+                    color: '#A0A0A0',
+                  }
+            }
+            data-active={active}
           >
-            {genre}
+            <span className={active ? 'genre-pill-active inline-block' : 'inline-block'}>
+              {label}
+            </span>
           </button>
         )
       })}
@@ -86,277 +56,322 @@ interface ContentRowProps {
   title: string
   seeAllHref: string
   loading: boolean
-  isEmpty: boolean
-  emptyMessage?: string
-  showSignupCTA?: boolean
   children?: ReactNode
+  empty?: boolean
+  emptyIcon?: ReactNode
+  emptyMessage?: string
+  emptyCTA?: { label: string; href: string }
 }
 
-function ContentRow({ title, seeAllHref, loading, isEmpty, emptyMessage, showSignupCTA, children }: ContentRowProps) {
+function ContentRow({ title, seeAllHref, loading, children, empty, emptyIcon, emptyMessage, emptyCTA }: ContentRowProps) {
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-white font-bold text-xl sm:text-2xl">{title}</h2>
-        <Link href={seeAllHref} className="text-[#1DB954] text-sm font-medium hover:underline flex-shrink-0 ml-4">
+        <h2 className="font-playfair font-bold text-[#F0F0F0] text-xl sm:text-2xl">{title}</h2>
+        <Link href={seeAllHref} className="text-[#A0A0A0] hover:text-[#F0F0F0] text-sm transition-colors ml-4 flex-shrink-0">
           See All →
         </Link>
       </div>
 
       {loading ? (
-        <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
-          {Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}
+        <div className="feed-row scrollbar-hide">
+          {Array.from({ length: 4 }).map((_, i) => <FeedCardSkeleton key={i} />)}
         </div>
-      ) : isEmpty ? (
-        <div className="bg-[#1E1E1E] rounded-2xl p-8 sm:p-10 text-center border border-white/5">
-          <p className="text-[#B3B3B3] text-sm mb-4">{emptyMessage ?? 'Nothing here yet.'}</p>
-          {showSignupCTA && (
-            <Link href="/signup" className="inline-flex items-center gap-2 bg-[#1DB954] hover:bg-[#1ed760] text-black font-bold text-sm px-5 py-2.5 rounded-full transition-all hover:scale-105">
-              Get Listed Free →
+      ) : empty ? (
+        <div
+          className="rounded-xl border p-8 text-center"
+          style={{ backgroundColor: '#1A1A1A', borderColor: '#2A2A2A' }}
+        >
+          {emptyIcon && <div className="flex justify-center mb-3 opacity-20">{emptyIcon}</div>}
+          <p className="text-[#A0A0A0] text-sm mb-4">{emptyMessage ?? 'Nothing here yet.'}</p>
+          {emptyCTA && (
+            <Link
+              href={emptyCTA.href}
+              className="inline-flex items-center gap-2 font-semibold text-sm px-5 py-2.5 rounded-full transition-all hover:scale-105 text-black"
+              style={{ backgroundColor: '#1DB954' }}
+            >
+              {emptyCTA.label}
             </Link>
           )}
         </div>
       ) : (
-        <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
-          {children}
-        </div>
+        <div className="feed-row scrollbar-hide">{children}</div>
       )}
     </div>
   )
 }
 
-// ─── Musician card ────────────────────────────────────────────────────────────
-function MusicianCard({ musician, trending = false }: { musician: FeedMusician; trending?: boolean }) {
-  return (
-    <Link href={`/musicians/${musician.id}`} className="min-w-[220px] sm:min-w-[260px] flex-shrink-0 block">
-      <div className="bg-[#1E1E1E] rounded-2xl border border-white/5 overflow-hidden hover:border-[#1DB954]/40 hover:scale-[1.03] hover:shadow-xl hover:shadow-[#1DB954]/10 transition-all h-full flex flex-col">
-        {/* Image */}
-        <div className="relative h-36 bg-gradient-to-br from-[#282828] to-[#1E1E1E] flex-shrink-0">
-          {musician.profile_image ? (
-            <img src={musician.profile_image} alt={musician.stage_name ?? 'Artist'} className="w-full h-full object-cover" />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <span className="text-white text-5xl font-black opacity-10 select-none">
-                {(musician.stage_name ?? 'M')[0].toUpperCase()}
-              </span>
-            </div>
-          )}
-          {trending && (
-            <div className="absolute top-2 left-2 flex items-center gap-1 bg-orange-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
-              <Flame className="w-2.5 h-2.5" /> Trending
-            </div>
-          )}
-          {musician.is_available && (
-            <div className="absolute top-2 right-2 bg-[#1DB954] text-black text-[10px] font-bold px-2 py-0.5 rounded-full">
-              Available
-            </div>
-          )}
-        </div>
-
-        {/* Info */}
-        <div className="p-4 flex flex-col flex-1">
-          <h3 className="text-white font-bold text-sm truncate mb-1">{musician.stage_name}</h3>
-          {(musician.city || musician.state) && (
-            <div className="flex items-center gap-1 text-[#B3B3B3] text-xs mb-2">
-              <MapPin className="w-3 h-3 flex-shrink-0" />
-              {[musician.city, musician.state].filter(Boolean).join(', ')}
-            </div>
-          )}
-          {musician.genre && musician.genre.length > 0 && (
-            <div className="flex flex-wrap gap-1 mb-2">
-              {musician.genre.slice(0, 2).map(g => (
-                <span key={g} className="bg-[#282828] text-[#B3B3B3] text-[10px] px-2 py-0.5 rounded-full">
-                  {g.replace(/_/g, ' ')}
-                </span>
-              ))}
-            </div>
-          )}
-          {musician.hourly_rate != null && (
-            <p className="text-[#1DB954] text-xs font-semibold mb-3">${musician.hourly_rate}/hr</p>
-          )}
-          <div className="mt-auto bg-[#1DB954] hover:bg-[#1ed760] text-black text-xs font-bold py-2 rounded-full text-center transition-colors">
-            View Profile
-          </div>
-        </div>
-      </div>
-    </Link>
-  )
+// ─── Genre filter for musicians ───────────────────────────────────────────────
+function filterM(items: FeedMusician[], genre: string): FeedMusician[] {
+  if (genre === 'all') return items
+  return items.filter(m => m.genre?.some(g => normalizeGenre(g) === genre))
 }
 
-// ─── Venue card ───────────────────────────────────────────────────────────────
-function VenueCard({ venue }: { venue: FeedVenue }) {
-  return (
-    <Link href={`/venues/${venue.id}`} className="min-w-[220px] sm:min-w-[260px] flex-shrink-0 block">
-      <div className="bg-[#1E1E1E] rounded-2xl border border-white/5 overflow-hidden hover:border-[#1DB954]/40 hover:scale-[1.03] hover:shadow-xl hover:shadow-[#1DB954]/10 transition-all h-full flex flex-col">
-        <div className="relative h-36 bg-gradient-to-br from-[#282828] to-[#1E1E1E] flex-shrink-0">
-          {venue.profile_image ? (
-            <img src={venue.profile_image} alt={venue.name ?? 'Venue'} className="w-full h-full object-cover" />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <Building2 className="w-12 h-12 text-[#1DB954]/15" />
-            </div>
-          )}
-        </div>
-        <div className="p-4 flex flex-col flex-1">
-          <h3 className="text-white font-bold text-sm truncate mb-1">{venue.name}</h3>
-          {(venue.city || venue.state) && (
-            <div className="flex items-center gap-1 text-[#B3B3B3] text-xs mb-2">
-              <MapPin className="w-3 h-3 flex-shrink-0" />
-              {[venue.city, venue.state].filter(Boolean).join(', ')}
-            </div>
-          )}
-          {venue.capacity != null && (
-            <p className="text-[#B3B3B3] text-xs mb-2">Cap: {venue.capacity.toLocaleString()}</p>
-          )}
-          <div className="mt-auto bg-[#1DB954] hover:bg-[#1ed760] text-black text-xs font-bold py-2 rounded-full text-center transition-colors">
-            View Venue
-          </div>
-        </div>
-      </div>
-    </Link>
-  )
+// ─── Role-aware hero profiles ─────────────────────────────────────────────────
+function toHeroMusician(m: FeedMusician): HeroProfile {
+  return { id: m.id, name: m.stage_name ?? 'Artist', bio: m.bio, genre: m.genre, city: m.city, state: m.state, type: 'musician', profile_image: m.profile_image, is_available: m.is_available, hourly_rate: m.hourly_rate }
 }
 
-// ─── Media card ───────────────────────────────────────────────────────────────
-function MediaCard({ musician }: { musician: FeedMusician }) {
-  const ytThumb = getYoutubeThumbnail(musician.youtube_url)
-
-  return (
-    <Link href={`/musicians/${musician.id}`} className="min-w-[220px] sm:min-w-[260px] flex-shrink-0 block">
-      <div className="bg-[#1E1E1E] rounded-2xl border border-white/5 overflow-hidden hover:border-[#1DB954]/40 hover:scale-[1.03] hover:shadow-xl hover:shadow-[#1DB954]/10 transition-all h-full flex flex-col">
-        <div className="relative h-36 bg-[#282828] flex-shrink-0">
-          {ytThumb ? (
-            <img src={ytThumb} alt={musician.stage_name ?? 'Track'} className="w-full h-full object-cover" />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <Music2 className="w-10 h-10 text-[#1DB954]/20" />
-            </div>
-          )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
-          <div className="absolute bottom-2 left-2 flex gap-1">
-            {musician.youtube_url && (
-              <span className="bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">YouTube</span>
-            )}
-            {musician.spotify_url && (
-              <span className="bg-[#1DB954] text-black text-[10px] font-bold px-2 py-0.5 rounded-full">Spotify</span>
-            )}
-          </div>
-        </div>
-        <div className="p-4 flex flex-col flex-1">
-          <h3 className="text-white font-bold text-sm truncate mb-0.5">{musician.stage_name}</h3>
-          <p className="text-[#B3B3B3] text-xs mb-3">Latest Release</p>
-          <div className="mt-auto flex items-center justify-center gap-1.5 bg-[#282828] hover:bg-[#333] text-white text-xs font-semibold py-2 rounded-full border border-white/10 transition-colors">
-            <ExternalLink className="w-3 h-3" />
-            Listen Now
-          </div>
-        </div>
-      </div>
-    </Link>
-  )
+function toHeroVenue(v: FeedVenue): HeroProfile {
+  return { id: v.id, name: v.name ?? 'Venue', bio: v.bio, genre: null, city: v.city, state: v.state, type: 'venue', profile_image: v.profile_image }
 }
 
 // ─── Main feed ────────────────────────────────────────────────────────────────
 export default function LoggedInFeed() {
   const { user } = useAuth()
+  const userRole = user?.user_metadata?.role as 'musician' | 'venue' | 'host' | undefined
+  const firstName = (user?.user_metadata?.first_name as string | undefined) ?? ''
+
   const [feedData, setFeedData] = useState<FeedData | null>(null)
   const [loading, setLoading] = useState(true)
   const [selectedGenre, setSelectedGenre] = useState('all')
+  const [userCity, setUserCity] = useState('')
 
-  const firstName = (user?.user_metadata?.first_name as string | undefined) ?? ''
-
+  // Fetch the logged-in user's city from their profile for "Near You" rows
   useEffect(() => {
-    fetch('/api/feed')
+    if (!user || !userRole) return
+    const table = userRole === 'musician' ? 'musicians' : userRole === 'venue' ? 'venues' : 'event_hosts'
+    supabase.from(table as 'musicians').select('city').eq('id', user.id).single().then(({ data }) => {
+      if (data?.city) setUserCity(data.city)
+    })
+  }, [user, userRole])
+
+  // Fetch feed data — re-fetches when city resolves but not on genre change (filtered client-side)
+  useEffect(() => {
+    if (!user) return
+    const params = new URLSearchParams({ city: userCity })
+    setLoading(true)
+    fetch(`/api/feed?${params}`)
       .then(r => r.json())
       .then((data: FeedData) => { setFeedData(data); setLoading(false) })
       .catch(() => setLoading(false))
-  }, [])
+  }, [user, userCity])
 
-  // Client-side genre filtering (handles both uppercase "COUNTRY" and title case "Country")
-  function filterByGenre<T extends { genre?: string[] | null }>(items: T[]): T[] {
-    if (selectedGenre === 'all') return items
-    return items.filter(m => m.genre?.some(g => normalizeGenre(g) === selectedGenre))
+  // Build role-aware hero profiles
+  const heroProfiles: HeroProfile[] = (() => {
+    if (!feedData) return []
+    if (userRole === 'musician') return feedData.featured.venues.map(toHeroVenue)
+    if (userRole === 'venue')    return feedData.featured.musicians.map(toHeroMusician)
+    // host: mix musicians + venues alternating
+    const mix: HeroProfile[] = []
+    const m = feedData.featured.musicians.map(toHeroMusician)
+    const v = feedData.featured.venues.map(toHeroVenue)
+    for (let i = 0; i < 5; i++) {
+      if (i % 2 === 0 && m[Math.floor(i / 2)]) mix.push(m[Math.floor(i / 2)])
+      else if (v[Math.floor(i / 2)]) mix.push(v[Math.floor(i / 2)])
+    }
+    return mix.slice(0, 5)
+  })()
+
+  // Greeting that changes by time of day
+  const hour = new Date().getHours()
+  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening'
+  const greetingText = firstName ? `${greeting}, ${firstName}` : greeting
+
+  // ── MUSICIAN ROWS ──────────────────────────────────────────────────────────
+  if (userRole === 'musician') {
+    const nearVenues = feedData?.venues.nearYou ?? []
+    const allVenues = feedData?.venues.all ?? []
+    const trendingVenues = feedData?.venues.trending ?? []
+    const musicMedia = filterM(feedData?.musicians.withMedia ?? [], selectedGenre)
+
+    return (
+      <FeedLayout greeting={greetingText} role={userRole} loading={loading} feedData={feedData} heroProfiles={heroProfiles} selectedGenre={selectedGenre} onGenreSelect={setSelectedGenre}>
+        <ContentRow title="Venues Near You" seeAllHref="/venues" loading={loading}
+          empty={nearVenues.length === 0}
+          emptyIcon={<Building2 className="w-10 h-10" />}
+          emptyMessage={userCity ? `No venues in ${userCity} yet — showing all` : 'No venues nearby yet.'}
+        >
+          {(nearVenues.length > 0 ? nearVenues : allVenues).map(v => <VenueCard key={v.id} venue={v} />)}
+        </ContentRow>
+
+        <ContentRow title="Currently Booking" seeAllHref="/venues" loading={loading}
+          empty={allVenues.length === 0}
+          emptyIcon={<Building2 className="w-10 h-10" />}
+          emptyMessage="No venues listed yet."
+          emptyCTA={{ label: 'Browse All Venues', href: '/venues' }}
+        >
+          {allVenues.map(v => <VenueCard key={v.id} venue={v} bookingBadge />)}
+        </ContentRow>
+
+        <ContentRow title="Trending Venues This Week" seeAllHref="/venues" loading={loading}
+          empty={trendingVenues.length === 0}
+          emptyIcon={<Building2 className="w-10 h-10" />}
+          emptyMessage="Check back soon."
+        >
+          {trendingVenues.map(v => <VenueCard key={v.id} venue={v} trending />)}
+        </ContentRow>
+
+        <ContentRow title="New Music / Latest Releases" seeAllHref="/musicians" loading={loading}
+          empty={musicMedia.length === 0}
+          emptyIcon={<Music2 className="w-10 h-10" />}
+          emptyMessage="Artists can add Spotify and YouTube links from their dashboard."
+        >
+          {musicMedia.map(m => <MusicianCard key={m.id} musician={m} mediaMode />)}
+        </ContentRow>
+
+        <ContentRow title="Explore More Venues" seeAllHref="/venues" loading={loading}
+          empty={allVenues.length === 0}
+          emptyIcon={<Building2 className="w-10 h-10" />}
+          emptyMessage="No venues yet — add yours!"
+          emptyCTA={{ label: 'List Your Venue', href: '/signup' }}
+        >
+          {allVenues.slice(0, 10).map(v => <VenueCard key={v.id} venue={v} />)}
+        </ContentRow>
+      </FeedLayout>
+    )
   }
 
-  const musicians = filterByGenre(feedData?.recentMusicians ?? [])
-  const trending = filterByGenre(feedData?.trending ?? [])
-  const withMedia = filterByGenre(feedData?.withMedia ?? [])
+  // ── VENUE ROWS ─────────────────────────────────────────────────────────────
+  if (userRole === 'venue') {
+    const nearM = filterM(feedData?.musicians.nearYou ?? [], selectedGenre)
+    const allM = filterM(feedData?.musicians.all ?? [], selectedGenre)
+    const trendingM = filterM(feedData?.musicians.trending ?? [], selectedGenre)
+    const withMedia = filterM(feedData?.musicians.withMedia ?? [], selectedGenre)
 
+    return (
+      <FeedLayout greeting={greetingText} role={userRole} loading={loading} feedData={feedData} heroProfiles={heroProfiles} selectedGenre={selectedGenre} onGenreSelect={setSelectedGenre}>
+        <ContentRow title="Musicians Near You" seeAllHref="/musicians" loading={loading}
+          empty={nearM.length === 0}
+          emptyIcon={<Music2 className="w-10 h-10" />}
+          emptyMessage={userCity ? `No musicians in ${userCity} yet — showing all` : 'No musicians nearby yet.'}
+        >
+          {(nearM.length > 0 ? nearM : allM).map(m => <MusicianCard key={m.id} musician={m} />)}
+        </ContentRow>
+
+        <ContentRow title="Recently Joined Musicians" seeAllHref="/musicians" loading={loading}
+          empty={allM.length === 0}
+          emptyIcon={<Music2 className="w-10 h-10" />}
+          emptyMessage="No musicians yet — be the first to get listed!"
+          emptyCTA={{ label: 'Get Listed Free', href: '/signup' }}
+        >
+          {allM.map(m => <MusicianCard key={m.id} musician={m} />)}
+        </ContentRow>
+
+        <ContentRow title="Trending Musicians This Week" seeAllHref="/musicians" loading={loading}
+          empty={trendingM.length === 0}
+          emptyIcon={<Music2 className="w-10 h-10" />}
+          emptyMessage="Check back soon for trending artists."
+        >
+          {trendingM.map(m => <MusicianCard key={m.id} musician={m} trending />)}
+        </ContentRow>
+
+        <ContentRow title="Top Artists by Genre" seeAllHref={`/musicians`} loading={loading}
+          empty={allM.length === 0}
+          emptyIcon={<Music2 className="w-10 h-10" />}
+          emptyMessage="No artists match this genre yet."
+        >
+          {allM.map(m => <MusicianCard key={m.id} musician={m} />)}
+        </ContentRow>
+
+        <ContentRow title="New Music / Latest Releases" seeAllHref="/musicians" loading={loading}
+          empty={withMedia.length === 0}
+          emptyIcon={<Music2 className="w-10 h-10" />}
+          emptyMessage="Artists can add music links from their dashboard."
+        >
+          {withMedia.map(m => <MusicianCard key={m.id} musician={m} mediaMode />)}
+        </ContentRow>
+      </FeedLayout>
+    )
+  }
+
+  // ── HOST ROWS ──────────────────────────────────────────────────────────────
+  const trendingM = filterM(feedData?.musicians.trending ?? [], selectedGenre)
+  const allVenues = feedData?.venues.all ?? []
+  const allM = filterM(feedData?.musicians.all ?? [], selectedGenre)
+  const trendingV = feedData?.venues.trending ?? []
+  const withMedia = filterM(feedData?.musicians.withMedia ?? [], selectedGenre)
+
+  return (
+    <FeedLayout greeting={greetingText} role={userRole} loading={loading} feedData={feedData} heroProfiles={heroProfiles} selectedGenre={selectedGenre} onGenreSelect={setSelectedGenre}>
+      <ContentRow title="Top Musicians This Week" seeAllHref="/musicians" loading={loading}
+        empty={trendingM.length === 0}
+        emptyIcon={<Music2 className="w-10 h-10" />}
+        emptyMessage="No musicians yet."
+        emptyCTA={{ label: 'Browse Musicians', href: '/musicians' }}
+      >
+        {trendingM.map(m => <MusicianCard key={m.id} musician={m} trending />)}
+      </ContentRow>
+
+      <ContentRow title="Available Venues" seeAllHref="/venues" loading={loading}
+        empty={allVenues.length === 0}
+        emptyIcon={<Building2 className="w-10 h-10" />}
+        emptyMessage="No venues listed yet."
+      >
+        {allVenues.map(v => <VenueCard key={v.id} venue={v} bookingBadge />)}
+      </ContentRow>
+
+      <ContentRow title="Recently Joined Musicians" seeAllHref="/musicians" loading={loading}
+        empty={allM.length === 0}
+        emptyIcon={<Music2 className="w-10 h-10" />}
+        emptyMessage="No musicians yet — be the first!"
+        emptyCTA={{ label: 'Get Listed', href: '/signup' }}
+      >
+        {allM.map(m => <MusicianCard key={m.id} musician={m} />)}
+      </ContentRow>
+
+      <ContentRow title="Trending Venues" seeAllHref="/venues" loading={loading}
+        empty={trendingV.length === 0}
+        emptyIcon={<Building2 className="w-10 h-10" />}
+        emptyMessage="No trending venues yet."
+      >
+        {trendingV.map(v => <VenueCard key={v.id} venue={v} trending />)}
+      </ContentRow>
+
+      <ContentRow title="New Music / Latest Releases" seeAllHref="/musicians" loading={loading}
+        empty={withMedia.length === 0}
+        emptyIcon={<Music2 className="w-10 h-10" />}
+        emptyMessage="Artists can add music links from their dashboard."
+      >
+        {withMedia.map(m => <MusicianCard key={m.id} musician={m} mediaMode />)}
+      </ContentRow>
+    </FeedLayout>
+  )
+}
+
+// ─── Shared layout wrapper ────────────────────────────────────────────────────
+interface FeedLayoutProps {
+  greeting: string
+  role: string | undefined
+  loading: boolean
+  feedData: FeedData | null
+  heroProfiles: HeroProfile[]
+  selectedGenre: string
+  onGenreSelect: (g: string) => void
+  children: ReactNode
+}
+
+function FeedLayout({ greeting, role, loading, heroProfiles, selectedGenre, onGenreSelect, children }: FeedLayoutProps) {
   return (
     <>
       <Head>
         <title>Discover | BandBridge</title>
       </Head>
-      <div className="min-h-screen bg-[#121212] pt-20 pb-20">
+      <div className="min-h-screen pb-20" style={{ backgroundColor: '#0D0D0D', paddingTop: '80px' }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
           {/* Greeting */}
-          <div className="mb-6 pt-4">
-            <h1 className="text-2xl sm:text-3xl font-black text-white">
-              {firstName ? `Good to see you, ${firstName} 👋` : 'Discover'}
-            </h1>
-            <p className="text-[#B3B3B3] text-sm mt-1">Find your next great show or talent.</p>
+          <div className="pt-6 pb-5">
+            <h1 className="font-playfair font-black text-2xl sm:text-3xl text-[#F0F0F0]">{greeting}</h1>
+            <p className="text-[#A0A0A0] text-sm mt-1 font-space-mono">
+              {role === 'musician' ? '// your stage is waiting' : role === 'venue' ? '// find your next artist' : '// discover the perfect sound'}
+            </p>
           </div>
 
           {/* Hero */}
           {loading ? (
-            <SkeletonHero />
-          ) : feedData?.featured && feedData.featured.length > 0 ? (
+            <div className="skeleton-shimmer rounded-2xl mb-8" style={{ height: 'min(70vh, 580px)', minHeight: '380px' }} />
+          ) : heroProfiles.length > 0 ? (
             <div className="mb-8">
-              <HeroPanel profiles={feedData.featured} />
+              <HeroPanel profiles={heroProfiles} role={role} />
             </div>
           ) : null}
 
           {/* Genre filter */}
-          <GenreFilter selected={selectedGenre} onSelect={setSelectedGenre} />
+          <GenreFilter selected={selectedGenre} onSelect={onGenreSelect} />
 
           {/* Content rows */}
-          <div className="space-y-12">
-
-            {/* Recently Joined Musicians */}
-            <ContentRow
-              title="Recently Joined Musicians"
-              seeAllHref="/musicians"
-              loading={loading}
-              isEmpty={musicians.length === 0}
-              emptyMessage="No musicians yet — be the first to get listed!"
-              showSignupCTA
-            >
-              {musicians.slice(0, 10).map(m => <MusicianCard key={m.id} musician={m} />)}
-            </ContentRow>
-
-            {/* Featured Venues */}
-            <ContentRow
-              title="Featured Venues"
-              seeAllHref="/venues"
-              loading={loading}
-              isEmpty={(feedData?.recentVenues ?? []).length === 0}
-              emptyMessage="No venues listed yet."
-            >
-              {(feedData?.recentVenues ?? []).map(v => <VenueCard key={v.id} venue={v} />)}
-            </ContentRow>
-
-            {/* New Music */}
-            <ContentRow
-              title="New Music"
-              seeAllHref="/musicians"
-              loading={loading}
-              isEmpty={withMedia.length === 0}
-              emptyMessage="Artists can add Spotify and YouTube links from their dashboard."
-            >
-              {withMedia.map(m => <MediaCard key={m.id} musician={m} />)}
-            </ContentRow>
-
-            {/* Trending */}
-            <ContentRow
-              title="Trending This Week"
-              seeAllHref="/musicians"
-              loading={loading}
-              isEmpty={trending.length === 0}
-              emptyMessage="Check back soon for trending artists."
-            >
-              {trending.map(m => <MusicianCard key={m.id} musician={m} trending />)}
-            </ContentRow>
-
-          </div>
+          <div className="space-y-12">{children}</div>
         </div>
       </div>
     </>
