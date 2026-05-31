@@ -66,17 +66,20 @@ body::after {
   will-change: transform, filter;
 }
 
-/* ─── Hero flash transition ──────────────────────────────────────────────────── */
-@keyframes hero-flash {
-  0%   { opacity: 0; }
-  35%  { opacity: 0.85; }
-  100% { opacity: 0; }
-}
+/* ─── Hero card slide animations ────────────────────────────────────────────── */
+@keyframes hero-card-out-fwd { from { transform: translateX(0) }    to { transform: translateX(-100%) } }
+@keyframes hero-card-out-bwd { from { transform: translateX(0) }    to { transform: translateX(100%) } }
+@keyframes hero-card-in-fwd  { from { transform: translateX(100%) } to { transform: translateX(0) } }
+@keyframes hero-card-in-bwd  { from { transform: translateX(-100%)} to { transform: translateX(0) } }
 
-.hero-flash {
-  animation: hero-flash 0.22s ease-out forwards;
-  pointer-events: none;
-}
+.hero-card-out-fwd { animation: hero-card-out-fwd 480ms cubic-bezier(0.25,0.46,0.45,0.94) forwards; }
+.hero-card-out-bwd { animation: hero-card-out-bwd 480ms cubic-bezier(0.25,0.46,0.45,0.94) forwards; }
+.hero-card-in-fwd  { animation: hero-card-in-fwd  480ms cubic-bezier(0.25,0.46,0.45,0.94) forwards; }
+.hero-card-in-bwd  { animation: hero-card-in-bwd  480ms cubic-bezier(0.25,0.46,0.45,0.94) forwards; }
+
+/* ─── Hero background crossfade ─────────────────────────────────────────────── */
+@keyframes hero-bg-fade { from { opacity: 0 } to { opacity: 1 } }
+.hero-bg-in { animation: hero-bg-fade 600ms ease forwards; }
 
 /* ─── Feed card ─────────────────────────────────────────────────────────────── */
 .feed-card {
