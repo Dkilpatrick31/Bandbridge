@@ -35,11 +35,6 @@ function toHeroVenue(v: FeedVenue): HeroProfile {
 // ─── Genre filter ─────────────────────────────────────────────────────────────
 function GenreFilter({ selected, onSelect }: { selected: string; onSelect: (g: string) => void }) {
   return (
-    /*
-      The outer div must NOT have overflow:hidden (Tailwind default is fine here).
-      The scroll container uses the genre-pill-row CSS class which adds 12px
-      vertical padding so rotate(-2deg) hover transforms aren't clipped.
-    */
     <div style={{ overflow: 'visible' }} className="mb-6 py-2">
       <div className="genre-pill-row scrollbar-hide">
         {GENRE_LABELS.map(label => {
@@ -123,6 +118,15 @@ interface FeedLayoutProps {
 }
 
 function FeedLayout({ greeting, tagline, loading, heroProfiles, role, selectedGenre, onGenreSelect, children }: FeedLayoutProps) {
+  // Find which hero profile best matches the active genre filter so the panel
+  // jumps there on a single pill click.
+  const heroStartIdx = selectedGenre === 'all' ? 0 : (() => {
+    const i = heroProfiles.findIndex(p =>
+      p.genre?.some(g => normalizeGenre(g) === selectedGenre)
+    )
+    return i >= 0 ? i : 0
+  })()
+
   return (
     <>
       <Head><title>Discover | BandBridge</title></Head>
@@ -139,7 +143,7 @@ function FeedLayout({ greeting, tagline, loading, heroProfiles, role, selectedGe
             <div className="skeleton-shimmer rounded-2xl mb-8" style={{ height: 'min(70vh, 580px)', minHeight: '380px' }} />
           ) : heroProfiles.length > 0 ? (
             <div className="mb-8">
-              <HeroPanel profiles={heroProfiles} role={role} />
+              <HeroPanel profiles={heroProfiles} role={role} startIdx={heroStartIdx} />
             </div>
           ) : null}
 

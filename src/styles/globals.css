@@ -160,6 +160,17 @@ body::after {
   flex-shrink: 0;
 }
 
+/* ─── Hero progress bar ─────────────────────────────────────────────────────── */
+@keyframes hero-progress {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+
+.hero-progress-fill {
+  transform-origin: left center;
+  animation: hero-progress 8s linear forwards;
+}
+
 /* ─── Skeleton shimmer ──────────────────────────────────────────────────────── */
 @keyframes shimmer {
   0%   { background-position: -600px 0; }
