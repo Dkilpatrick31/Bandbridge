@@ -30,3 +30,11 @@ body {
   background: #1DB954;
   border-radius: 3px;
 }
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}

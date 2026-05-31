@@ -1,9 +1,16 @@
 import Head from 'next/head'
 import { useState } from 'react'
 import { Music2, Building2, ArrowRight, Check } from 'lucide-react'
+import { useAuth } from '@/context/AuthContext'
 
 export default function OnboardingPage() {
+  const { user } = useAuth()
   const [role, setRole] = useState<'musician' | 'venue' | null>(null)
+
+  // Pre-fill name from auth metadata if available
+  const prefillFirstName = (user?.user_metadata?.first_name as string) ?? ''
+  const prefillLastName = (user?.user_metadata?.last_name as string) ?? ''
+  const prefillName = [prefillFirstName, prefillLastName].filter(Boolean).join(' ')
 
   return (
     <>
@@ -14,7 +21,9 @@ export default function OnboardingPage() {
       <div className="min-h-screen bg-[#121212] pt-24 pb-20 flex items-center">
         <div className="max-w-2xl mx-auto px-4 sm:px-6 w-full">
           <div className="text-center mb-10">
-            <h1 className="text-4xl font-black text-white mb-3">Join BandBridge</h1>
+            <h1 className="text-4xl font-black text-white mb-3">
+              {prefillFirstName ? `Welcome, ${prefillFirstName}!` : 'Join BandBridge'}
+            </h1>
             <p className="text-[#B3B3B3] text-lg">Are you a musician/band or a venue?</p>
           </div>
 
@@ -61,8 +70,14 @@ export default function OnboardingPage() {
                   />
                 </div>
                 <div>
+                  <label className="text-[#B3B3B3] text-sm mb-1.5 block">Full Name</label>
+                  <input type="text" defaultValue={prefillName} placeholder="Your full name"
+                    className="w-full bg-[#282828] border border-white/10 text-white placeholder-[#B3B3B3]/50 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#1DB954]/50"
+                  />
+                </div>
+                <div>
                   <label className="text-[#B3B3B3] text-sm mb-1.5 block">Email</label>
-                  <input type="email" placeholder="your@email.com"
+                  <input type="email" defaultValue={user?.email ?? ''} placeholder="your@email.com"
                     className="w-full bg-[#282828] border border-white/10 text-white placeholder-[#B3B3B3]/50 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#1DB954]/50"
                   />
                 </div>

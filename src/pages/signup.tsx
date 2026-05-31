@@ -16,6 +16,8 @@ export default function SignupPage() {
   const { signUp } = useAuth()
 
   const [role, setRole] = useState<'musician' | 'venue' | 'host' | null>(null)
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -66,7 +68,7 @@ export default function SignupPage() {
 
     setSubmitting(true)
 
-    const { data, error: signUpError } = await signUp(email, password, { role })
+    const { data, error: signUpError } = await signUp(email, password, { role, first_name: firstName, last_name: lastName || null })
     if (signUpError || !data?.user) {
       setError(signUpError?.message ?? 'Sign up failed.')
       setSubmitting(false)
@@ -78,6 +80,8 @@ export default function SignupPage() {
     if (role === 'musician') {
       const { error: insertError } = await supabase.from('musicians').insert({
         id: userId,
+        first_name: firstName,
+        last_name: lastName || null,
         stage_name: name,
         bio,
         genre: genres,
@@ -92,7 +96,9 @@ export default function SignupPage() {
     } else if (role === 'host') {
       const { error: insertError } = await supabase.from('event_hosts').insert({
         id: userId,
-        full_name: name,
+        first_name: firstName,
+        last_name: lastName || null,
+        full_name: `${firstName}${lastName ? ' ' + lastName : ''}`,
         email,
         phone: hostPhone || null,
         city,
@@ -106,6 +112,8 @@ export default function SignupPage() {
     } else {
       const { error: insertError } = await supabase.from('venues').insert({
         id: userId,
+        first_name: firstName,
+        last_name: lastName || null,
         name,
         street_address: streetAddress,
         city,
@@ -168,6 +176,17 @@ export default function SignupPage() {
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="bg-[#1E1E1E] rounded-2xl p-6 border border-white/5 space-y-4">
                 <h2 className="text-white font-bold text-lg">Account Details</h2>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className={labelCls}>First Name</label>
+                    <input type="text" required value={firstName} onChange={e => setFirstName(e.target.value)} placeholder="Jane" className={inputCls} />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Last Name <span className="text-[#B3B3B3]/50">(optional)</span></label>
+                    <input type="text" value={lastName} onChange={e => setLastName(e.target.value)} placeholder="Smith" className={inputCls} />
+                  </div>
+                </div>
 
                 <div>
                   <label className={labelCls}>Email</label>

@@ -53,6 +53,10 @@ export default function DashboardPage() {
   const [profile, setProfile] = useState<AnyProfile | null>(null)
   const [role, setRole] = useState<Role | null>(null)
   const [profileLoading, setProfileLoading] = useState(true)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [confirmText, setConfirmText] = useState('')
+  const [deleteLoading, setDeleteLoading] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
 
   useEffect(() => {
     if (!loading && !user) router.replace('/login')
@@ -100,6 +104,32 @@ export default function DashboardPage() {
     router.push('/')
   }
 
+  async function handleDeleteAccount() {
+    setDeleteLoading(true)
+    setDeleteError('')
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch('/api/delete-account', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session?.access_token}`,
+          'Content-Type': 'application/json',
+        },
+      })
+      const json = await res.json()
+      if (!res.ok) {
+        setDeleteError(json.error ?? 'Deletion failed. Please try again.')
+        setDeleteLoading(false)
+        return
+      }
+      await signOut()
+      router.push('/')
+    } catch {
+      setDeleteError('An unexpected error occurred. Please try again.')
+      setDeleteLoading(false)
+    }
+  }
+
   if (loading || profileLoading) {
     return (
       <div className="min-h-screen bg-[#121212] flex items-center justify-center">
@@ -138,7 +168,7 @@ export default function DashboardPage() {
               </div>
               <div>
                 <h1 className="text-2xl font-black text-white">{displayName}</h1>
-                <span className="text-[#1DB954] text-sm font-semibold capitalize">{roleLabel}</span>
+                <span className="inline-flex items-center bg-[#1DB954]/10 border border-[#1DB954]/30 text-[#1DB954] text-xs font-semibold px-2.5 py-1 rounded-full capitalize">{roleLabel}</span>
               </div>
             </div>
             <button
@@ -350,8 +380,70 @@ export default function DashboardPage() {
             </div>
           </div>
 
+          {/* Danger Zone */}
+          <div className="mt-8 border border-red-500/20 rounded-2xl p-6">
+            <h2 className="text-red-400 font-bold text-sm uppercase tracking-wider mb-1">Danger Zone</h2>
+            <p className="text-[#B3B3B3] text-sm mb-4">
+              Permanently delete your account, profile, and all associated data.
+            </p>
+            <button
+              onClick={() => { setShowDeleteModal(true); setConfirmText(''); setDeleteError('') }}
+              className="border border-red-500 text-red-500 hover:bg-red-500 hover:text-white font-semibold text-sm px-5 py-2.5 rounded-xl transition-all"
+            >
+              Delete My Account
+            </button>
+          </div>
+
         </div>
       </div>
+
+      {/* Delete confirmation modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+          <div className="bg-[#1E1E1E] border border-red-500/50 rounded-2xl p-8 max-w-md w-full shadow-2xl">
+            <h2 className="text-white font-bold text-xl mb-3">Delete Account?</h2>
+            <p className="text-[#B3B3B3] text-sm leading-relaxed mb-6">
+              This will permanently delete your account, profile, and all associated data. This action cannot be undone.
+            </p>
+
+            <div className="mb-6">
+              <label className="text-[#B3B3B3] text-sm mb-2 block">
+                Type <span className="text-white font-mono font-bold">DELETE</span> to confirm
+              </label>
+              <input
+                type="text"
+                value={confirmText}
+                onChange={e => setConfirmText(e.target.value)}
+                placeholder="DELETE"
+                className="w-full bg-[#282828] border border-white/10 text-white placeholder-[#B3B3B3]/40 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-red-500/50"
+              />
+            </div>
+
+            {deleteError && (
+              <p className="text-red-400 text-sm bg-red-400/10 border border-red-400/20 rounded-xl px-4 py-3 mb-4">
+                {deleteError}
+              </p>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                disabled={deleteLoading}
+                className="flex-1 bg-[#282828] hover:bg-[#333] text-white font-semibold text-sm py-3 rounded-xl transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={confirmText !== 'DELETE' || deleteLoading}
+                className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-sm py-3 rounded-xl transition-all"
+              >
+                {deleteLoading ? 'Deleting…' : 'Yes, Delete My Account'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }
