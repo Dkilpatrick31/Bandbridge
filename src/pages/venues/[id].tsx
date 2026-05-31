@@ -1,7 +1,11 @@
 import Head from 'next/head'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
+import { useState, useEffect } from 'react'
 import { MapPin, Users, Globe, Phone, Mail, Building2 } from 'lucide-react'
+import { useAuth } from '@/context/AuthContext'
+import { supabase } from '@/lib/supabase'
+import BookingModal from '@/components/booking/BookingModal'
 
 interface VenueDetail {
   id: string
@@ -126,11 +130,58 @@ const VENUES: Record<string, VenueDetail> = {
 
 const FALLBACK = VENUES["1"]
 
+interface RealVenue {
+  id: string
+  name: string | null
+  bio: string | null
+  city: string | null
+  state: string | null
+  capacity: number | null
+  website_url: string | null
+}
+
 export default function VenueProfilePage() {
   const router = useRouter()
   const { id } = router.query
-  const venue = (typeof id === 'string' && VENUES[id]) ? VENUES[id] : FALLBACK
+  const { user } = useAuth()
 
+  const [realVenue, setRealVenue]         = useState<RealVenue | null>(null)
+  const [musicianRate, setMusicianRate]   = useState<number | undefined>(undefined)
+  const [showBookingModal, setShowBookingModal] = useState(false)
+
+  // Try to load from Supabase (works for seeded venues with real UUIDs)
+  useEffect(() => {
+    if (typeof id !== 'string') return
+    supabase.from('venues').select('id, name, bio, city, state, capacity, website_url')
+      .eq('id', id).maybeSingle()
+      .then(({ data }) => { if (data) setRealVenue(data) })
+  }, [id])
+
+  // Load musician's hourly rate for the booking modal pre-fill
+  useEffect(() => {
+    const role = user?.user_metadata?.role
+    if (!user || role !== 'musician') return
+    supabase.from('musicians').select('hourly_rate').eq('id', user.id).single()
+      .then(({ data }) => { if (data?.hourly_rate) setMusicianRate(data.hourly_rate) })
+  }, [user])
+
+  const mockVenue = (typeof id === 'string' && VENUES[id]) ? VENUES[id] : FALLBACK
+
+  // Use real venue data when available, fall back to mock
+  const venue = realVenue
+    ? {
+        ...mockVenue,
+        name:       realVenue.name ?? mockVenue.name,
+        bio:        realVenue.bio  ?? mockVenue.bio,
+        city:       realVenue.city ?? mockVenue.city,
+        state:      realVenue.state ?? mockVenue.state,
+        capacity:   realVenue.capacity ?? mockVenue.capacity,
+        websiteUrl: realVenue.website_url ?? mockVenue.websiteUrl,
+      }
+    : mockVenue
+
+  const userRole = user?.user_metadata?.role
+  const canBook  = userRole === 'musician' && !!realVenue
   const hasContact = (venue.showEmail && venue.email) || (venue.showPhone && venue.phone)
 
   return (
@@ -238,17 +289,48 @@ export default function VenueProfilePage() {
 
             {/* Sidebar */}
             <div className="space-y-4">
-              {/* Book a Musician CTA */}
+              {/* Booking CTA — adapts to who's viewing */}
               <div className="bg-[#1E1E1E] rounded-2xl p-5 sm:p-6 border border-[#1DB954]/20 lg:sticky lg:top-24">
-                <h3 className="text-white font-bold text-lg mb-2">Looking for Artists?</h3>
-                <p className="text-[#B3B3B3] text-sm mb-5">Browse available musicians and bands ready to perform at your venue. Only 5% booking fee.</p>
-                <Link
-                  href="/musicians"
-                  className="block w-full bg-[#1DB954] hover:bg-[#1ed760] text-black font-bold text-center py-3 rounded-xl transition-all hover:scale-105 text-sm"
-                >
-                  Book a Musician
-                </Link>
-                <p className="text-[#B3B3B3] text-xs text-center mt-3">5% platform fee. Secure payment via Stripe.</p>
+                {canBook ? (
+                  <>
+                    <h3 className="text-white font-bold text-lg mb-2">Book This Venue</h3>
+                    <p className="text-[#B3B3B3] text-sm mb-5">
+                      Send a booking request to <span className="text-white">{venue.name}</span>. Only 5% platform fee.
+                    </p>
+                    <button
+                      onClick={() => setShowBookingModal(true)}
+                      className="block w-full bg-[#1DB954] hover:bg-[#1ed760] text-black font-bold text-center py-3 rounded-xl transition-all hover:scale-105 text-sm min-h-[44px]"
+                    >
+                      Request a Booking
+                    </button>
+                    <p className="text-[#B3B3B3] text-xs text-center mt-3">5% platform fee · Secure payment via Stripe</p>
+                  </>
+                ) : userRole === 'musician' ? (
+                  <>
+                    <h3 className="text-white font-bold text-lg mb-2">Interested in Performing?</h3>
+                    <p className="text-[#B3B3B3] text-sm mb-5">Contact the venue directly to discuss availability and bookings.</p>
+                    {venue.email && venue.showEmail && (
+                      <a
+                        href={`mailto:${venue.email}`}
+                        className="block w-full bg-[#1DB954] hover:bg-[#1ed760] text-black font-bold text-center py-3 rounded-xl transition-all hover:scale-105 text-sm min-h-[44px]"
+                      >
+                        Contact Venue
+                      </a>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <h3 className="text-white font-bold text-lg mb-2">Looking for Artists?</h3>
+                    <p className="text-[#B3B3B3] text-sm mb-5">Browse available musicians and bands ready to perform. Only 5% booking fee.</p>
+                    <Link
+                      href="/musicians"
+                      className="block w-full bg-[#1DB954] hover:bg-[#1ed760] text-black font-bold text-center py-3 rounded-xl transition-all hover:scale-105 text-sm min-h-[44px]"
+                    >
+                      Book a Musician
+                    </Link>
+                    <p className="text-[#B3B3B3] text-xs text-center mt-3">5% platform fee · Secure payment via Stripe</p>
+                  </>
+                )}
               </div>
 
               {/* Links */}
@@ -281,6 +363,19 @@ export default function VenueProfilePage() {
 
         </div>
       </div>
+
+      {showBookingModal && realVenue && (
+        <BookingModal
+          venueId={realVenue.id}
+          venueName={realVenue.name ?? venue.name}
+          defaultRate={musicianRate}
+          onClose={() => setShowBookingModal(false)}
+          onSuccess={() => {
+            setShowBookingModal(false)
+            router.push('/dashboard?tab=pending')
+          }}
+        />
+      )}
     </>
   )
 }

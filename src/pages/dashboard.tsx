@@ -2,9 +2,11 @@ import Head from 'next/head'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
-import { Music2, Building2, Calendar, MapPin, DollarSign, Edit2, LogOut, CalendarX2 } from 'lucide-react'
+import { Music2, Building2, Calendar, MapPin, DollarSign, Edit2, LogOut } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { supabase } from '@/lib/supabase'
+import MusicianBookingsPanel from '@/components/booking/MusicianBookingsPanel'
+import VenueBookingsPanel from '@/components/booking/VenueBookingsPanel'
 
 interface MusicianProfile {
   stage_name: string
@@ -50,6 +52,7 @@ const ROLE_ICONS: Record<Role, React.ReactNode> = {
 export default function DashboardPage() {
   const router = useRouter()
   const { user, loading, signOut } = useAuth()
+  const initialTab = typeof router.query.tab === 'string' ? router.query.tab : undefined
   const [profile, setProfile] = useState<AnyProfile | null>(null)
   const [role, setRole] = useState<Role | null>(null)
   const [profileLoading, setProfileLoading] = useState(true)
@@ -371,14 +374,9 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* Recent Bookings placeholder */}
-          <div className="mt-6 bg-[#1E1E1E] rounded-2xl p-6 border border-white/5">
-            <h2 className="text-white font-bold text-lg mb-4">Recent Bookings</h2>
-            <div className="text-center py-12 text-[#B3B3B3]">
-              <CalendarX2 className="w-8 h-8 mx-auto mb-3 opacity-30" />
-              <p className="text-sm">No bookings yet. They&apos;ll appear here once you start booking.</p>
-            </div>
-          </div>
+          {/* Booking panels — role-aware */}
+          {role === 'musician' && <MusicianBookingsPanel initialTab={initialTab} />}
+          {role === 'venue'    && <VenueBookingsPanel    initialTab={initialTab} />}
 
           {/* Danger Zone */}
           <div className="mt-8 border border-red-500/20 rounded-2xl p-6">
