@@ -162,7 +162,7 @@ body::after {
   animation: waveform-bounce 1.2s ease-in-out infinite;
 }
 
-/* ─── Horizontal scroll momentum ────────────────────────────────────────────── */
+/* ─── Horizontal scroll momentum (desktop default) ──────────────────────────── */
 .feed-row {
   display: flex;
   gap: 16px;
@@ -175,6 +175,37 @@ body::after {
 .feed-row > * {
   scroll-snap-align: start;
   flex-shrink: 0;
+}
+
+/* ── Mobile (<640px): vertical stack, no horizontal scroll ──────────────────── */
+@media (max-width: 639px) {
+  .feed-row {
+    flex-direction: column;
+    overflow-x: visible;
+    scroll-snap-type: none;
+    padding-bottom: 0;
+  }
+  .feed-row > * {
+    width: 100%;
+    min-width: 0;        /* override any inline / Tailwind min-width */
+    scroll-snap-align: none;
+  }
+}
+
+/* ── Tablet (640px–1023px): 2-column grid ───────────────────────────────────── */
+@media (min-width: 640px) and (max-width: 1023px) {
+  .feed-row {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    overflow-x: visible;
+    scroll-snap-type: none;
+    padding-bottom: 0;
+  }
+  .feed-row > * {
+    min-width: 0;
+    scroll-snap-align: none;
+    flex-shrink: unset;
+  }
 }
 
 /*

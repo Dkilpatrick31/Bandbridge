@@ -50,8 +50,8 @@ function CapacityBar({ capacity, color }: { capacity: number | null; color: stri
 // ─── Skeleton ────────────────────────────────────────────────────────────────
 export function FeedCardSkeleton() {
   return (
-    <div className="feed-card min-w-[220px] sm:min-w-[255px]" style={{ height: '290px' }}>
-      <div className="skeleton-shimmer" style={{ height: '155px' }} />
+    <div className="feed-card lg:min-w-[255px] lg:h-[290px]">
+      <div className="skeleton-shimmer h-[200px] sm:h-[155px]" />
       <div className="p-4 space-y-2.5 flex-1">
         <div className="skeleton-shimmer rounded h-4 w-3/4" />
         <div className="skeleton-shimmer rounded h-3 w-1/2" />
@@ -80,13 +80,13 @@ export function MusicianCard({ musician, trending, mediaMode }: MusicianCardProp
   return (
     <Link
       href={href}
-      className="min-w-[220px] sm:min-w-[255px] block"
+      className="lg:min-w-[255px] lg:h-[290px] block"
       style={{ ['--card-glow' as string]: `${accentColor}60` }}
     >
       <div className="feed-card h-full" style={{ borderTopColor: accentColor, borderTopWidth: '3px' }}>
 
-        {/* Image */}
-        <div className="relative flex-shrink-0" style={{ height: '155px', backgroundColor: '#111' }}>
+        {/* Image — taller on mobile for vertical-feed readability */}
+        <div className="relative flex-shrink-0 h-[200px] sm:h-[155px]" style={{ backgroundColor: '#111' }}>
           {imageSrc ? (
             <img src={imageSrc} alt={musician.stage_name ?? ''} className="w-full h-full object-cover" />
           ) : (
@@ -191,12 +191,12 @@ export function VenueCard({ venue, trending, bookingBadge }: VenueCardProps) {
   return (
     <Link
       href={href}
-      className="min-w-[220px] sm:min-w-[255px] block"
+      className="lg:min-w-[255px] lg:h-[290px] block"
       style={{ ['--card-glow' as string]: `${accentColor}55` }}
     >
       <div className="feed-card h-full" style={{ borderTopColor: accentColor, borderTopWidth: '3px' }}>
 
-        <div className="relative flex-shrink-0" style={{ height: '155px', backgroundColor: '#111' }}>
+        <div className="relative flex-shrink-0 h-[200px] sm:h-[155px]" style={{ backgroundColor: '#111' }}>
           {venue.profile_image ? (
             <img src={venue.profile_image} alt={venue.name ?? ''} className="w-full h-full object-cover" />
           ) : (
