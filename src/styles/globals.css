@@ -99,7 +99,7 @@ body::after {
 
 /* ─── Genre pill ────────────────────────────────────────────────────────────── */
 .genre-pill {
-  transition: transform 0.18s ease, box-shadow 0.25s ease, background 0.18s ease;
+  transition: transform 150ms ease, box-shadow 150ms ease, background-color 150ms ease, border-color 150ms ease, color 150ms ease;
   font-family: var(--font-space-mono, monospace);
   cursor: pointer;
 }

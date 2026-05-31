@@ -34,23 +34,31 @@ function toHeroVenue(v: FeedVenue): HeroProfile {
 
 // ─── Genre filter ─────────────────────────────────────────────────────────────
 function GenreFilter({ selected, onSelect }: { selected: string; onSelect: (g: string) => void }) {
+  const [hoveredKey, setHoveredKey] = useState<string | null>(null)
+
   return (
     <div style={{ overflow: 'visible' }} className="mb-6 py-2">
       <div className="genre-pill-row scrollbar-hide">
         {GENRE_LABELS.map(label => {
           const key = normalizeGenre(label)
           const active = selected === key
+          // Don't apply hover styling to the already-active pill — it has its own glow.
+          const hovered = !active && hoveredKey === key
           const color = GENRE_COLORS[key] ?? '#1DB954'
           return (
             <button
               key={label}
               onClick={() => onSelect(key)}
+              onMouseEnter={() => setHoveredKey(key)}
+              onMouseLeave={() => setHoveredKey(null)}
               className={`genre-pill flex-shrink-0 px-4 py-2 rounded-full text-xs border ${active ? 'genre-pill-active' : ''}`}
               style={{
                 ['--pill-glow' as string]: `${color}70`,
-                backgroundColor: active ? `${color}22` : '#1A1A1A',
-                borderColor: active ? color : '#2A2A2A',
-                color: active ? color : '#A0A0A0',
+                backgroundColor: active ? `${color}22` : hovered ? `${color}15` : '#1A1A1A',
+                borderColor:      active ? color       : hovered ? `${color}90` : '#2A2A2A',
+                color:            active ? color       : hovered ? `${color}CC` : '#A0A0A0',
+                // Hover glow is the same layers as .genre-pill-active but at ~60% opacity.
+                boxShadow: hovered ? `0 0 18px -4px ${color}50, 0 0 0 1px ${color}30` : undefined,
               }}
             >
               {label}
