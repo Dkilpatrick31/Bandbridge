@@ -9,6 +9,17 @@ export default function Document() {
   return (
     <Html lang="en">
       <Head>
+        {/*
+          viewport-fit=cover is required for env(safe-area-inset-*) to work on
+          iOS (Dynamic Island, notch). Without it Safari ignores safe-area values.
+        */}
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+        {/* Chromium on Android uses this for the address bar / status bar colour */}
+        <meta name="theme-color" content="#0D0D0D" />
+        {/* PWA-style full-screen on iOS home-screen launch */}
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
         {/* Favicon */}
         <link rel="icon" href="/logo.png" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />

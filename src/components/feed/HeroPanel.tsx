@@ -264,7 +264,7 @@ export default function HeroPanel({ profiles, role, startIdx = 0 }: HeroPanelPro
       {profiles.length > 1 && (
         <button
           onClick={() => go((shownIdxRef.current - 1 + profiles.length) % profiles.length, 'backward')}
-          className="absolute left-0 top-0 bottom-0 w-14 flex items-center justify-center"
+          className="hero-arrow absolute left-0 top-0 bottom-0 w-14 flex items-center justify-center"
           style={{
             zIndex: 20,
             opacity: isHovered ? 1 : 0,
@@ -282,7 +282,7 @@ export default function HeroPanel({ profiles, role, startIdx = 0 }: HeroPanelPro
       {profiles.length > 1 && (
         <button
           onClick={() => go((shownIdxRef.current + 1) % profiles.length, 'forward')}
-          className="absolute right-0 top-0 bottom-0 w-14 flex items-center justify-center"
+          className="hero-arrow absolute right-0 top-0 bottom-0 w-14 flex items-center justify-center"
           style={{
             zIndex: 20,
             opacity: isHovered ? 1 : 0,

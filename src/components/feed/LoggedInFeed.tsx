@@ -138,7 +138,21 @@ function FeedLayout({ greeting, tagline, loading, heroProfiles, role, selectedGe
   return (
     <>
       <Head><title>Discover | BandBridge</title></Head>
-      <div className="min-h-screen pb-20" style={{ backgroundColor: '#0D0D0D', paddingTop: '80px' }}>
+      {/*
+        min-h-[100dvh] uses the dynamic viewport height (excludes the browser
+        chrome on mobile) instead of 100vh which includes hidden UI elements.
+        paddingTop accounts for: fixed nav (64px) + safe-area-inset-top (Dynamic
+        Island / notch / punch-hole) + 16px gap.
+        paddingBottom accounts for: base 80px + home indicator / gesture bar.
+      */}
+      <div
+        className="min-h-[100dvh]"
+        style={{
+          backgroundColor: '#0D0D0D',
+          paddingTop: 'var(--page-top, 80px)',
+          paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px))',
+        }}
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
           <div className="pt-6 pb-5">

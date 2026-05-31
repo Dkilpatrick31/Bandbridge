@@ -14,12 +14,32 @@
 
 html {
   scroll-behavior: smooth;
+  /*
+    CSS custom properties that expose the platform safe-area insets.
+    Requires viewport-fit=cover in the <meta name="viewport"> tag.
+    Fallback to 0px so calc() works on non-notched devices.
+  */
+  --sat: env(safe-area-inset-top,    0px);
+  --sar: env(safe-area-inset-right,  0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left,   0px);
+  /* Base navbar content height (inner h-16). Used by the page-top calc. */
+  --nav-h: 64px;
+  /* Total vertical offset below the fixed navbar (nav + safe top + 16px gap). */
+  --page-top: calc(var(--nav-h) + var(--sat) + 16px);
 }
 
 body {
   background-color: #0D0D0D;
   color: #F0F0F0;
   font-family: var(--font-sans);
+  /*
+    Prevent any child element from causing horizontal page scroll.
+    overflow-x: clip is used instead of hidden so it doesn't create a new
+    block formatting context — that keeps position:fixed elements (navbar)
+    unaffected on all browsers including iOS Safari.
+  */
+  overflow-x: clip;
 }
 
 /* ─── Grain/noise texture overlay ───────────────────────────────────────────── */
@@ -80,6 +100,20 @@ body::after {
 /* ─── Hero background crossfade ─────────────────────────────────────────────── */
 @keyframes hero-bg-fade { from { opacity: 0 } to { opacity: 1 } }
 .hero-bg-in { animation: hero-bg-fade 600ms ease forwards; }
+
+/* ─── Hero arrows — touch device visibility ─────────────────────────────────── */
+/*
+  On desktop, arrows fade in/out based on hover state (React-controlled).
+  On touch / no-hover devices (phones, tablets) the hover state never fires, so
+  we force them visible via CSS. The !important overrides the inline opacity/
+  pointer-events styles set by the React hover logic.
+*/
+@media (hover: none) and (pointer: coarse) {
+  .hero-arrow {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+}
 
 /* ─── Feed card ─────────────────────────────────────────────────────────────── */
 .feed-card {
