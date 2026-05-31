@@ -62,7 +62,12 @@ export default function HeroPanel({ profiles, role }: HeroPanelProps) {
         <div
           className="absolute inset-0"
           style={{
-            background: `radial-gradient(ellipse at 30% 40%, ${accentColor}22 0%, #0D0D0D 70%)`,
+            background: `
+              radial-gradient(ellipse at 22% 65%, ${accentColor}50 0%, transparent 52%),
+              radial-gradient(ellipse at 72% 25%, ${accentColor}28 0%, transparent 45%),
+              radial-gradient(ellipse at 50% 105%, ${accentColor}18 0%, transparent 38%),
+              #0D0D0D
+            `,
           }}
         />
       )}

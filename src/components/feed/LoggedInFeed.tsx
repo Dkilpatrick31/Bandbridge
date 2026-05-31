@@ -10,43 +10,59 @@ import {
   GENRE_LABELS, GENRE_COLORS, normalizeGenre,
   type FeedMusician, type FeedVenue, type FeedData, type HeroProfile,
 } from './types'
+import {
+  DEMO_MUSICIANS, DEMO_VENUES, DEMO_MUSICIANS_WITH_MEDIA,
+} from './demoData'
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function fallback<T>(real: T[], demo: T[]): T[] {
+  return real.length > 0 ? real : demo
+}
+
+function filterM(items: FeedMusician[], genre: string): FeedMusician[] {
+  if (genre === 'all') return items
+  return items.filter(m => m.genre?.some(g => normalizeGenre(g) === genre))
+}
+
+function toHeroMusician(m: FeedMusician): HeroProfile {
+  return { id: m.id, name: m.stage_name ?? 'Artist', bio: m.bio, genre: m.genre, city: m.city, state: m.state, type: 'musician', profile_image: m.profile_image, is_available: m.is_available, hourly_rate: m.hourly_rate }
+}
+
+function toHeroVenue(v: FeedVenue): HeroProfile {
+  return { id: v.id, name: v.name ?? 'Venue', bio: v.bio, genre: null, city: v.city, state: v.state, type: 'venue', profile_image: v.profile_image }
+}
 
 // ─── Genre filter ─────────────────────────────────────────────────────────────
 function GenreFilter({ selected, onSelect }: { selected: string; onSelect: (g: string) => void }) {
   return (
-    <div className="feed-row scrollbar-hide mb-8">
-      {GENRE_LABELS.map(label => {
-        const key = normalizeGenre(label)
-        const active = selected === key
-        const color = GENRE_COLORS[key] ?? '#1DB954'
-        return (
-          <button
-            key={label}
-            onClick={() => onSelect(key)}
-            className="genre-pill flex-shrink-0 px-4 py-2 rounded-full text-xs border"
-            style={
-              active
-                ? {
-                    ['--pill-glow' as string]: `${color}70`,
-                    backgroundColor: `${color}22`,
-                    borderColor: color,
-                    color,
-                  }
-                : {
-                    ['--pill-glow' as string]: `${color}70`,
-                    backgroundColor: '#1A1A1A',
-                    borderColor: '#2A2A2A',
-                    color: '#A0A0A0',
-                  }
-            }
-            data-active={active}
-          >
-            <span className={active ? 'genre-pill-active inline-block' : 'inline-block'}>
+    /*
+      The outer div must NOT have overflow:hidden (Tailwind default is fine here).
+      The scroll container uses the genre-pill-row CSS class which adds 12px
+      vertical padding so rotate(-2deg) hover transforms aren't clipped.
+    */
+    <div style={{ overflow: 'visible' }} className="mb-6 py-2">
+      <div className="genre-pill-row scrollbar-hide">
+        {GENRE_LABELS.map(label => {
+          const key = normalizeGenre(label)
+          const active = selected === key
+          const color = GENRE_COLORS[key] ?? '#1DB954'
+          return (
+            <button
+              key={label}
+              onClick={() => onSelect(key)}
+              className={`genre-pill flex-shrink-0 px-4 py-2 rounded-full text-xs border ${active ? 'genre-pill-active' : ''}`}
+              style={{
+                ['--pill-glow' as string]: `${color}70`,
+                backgroundColor: active ? `${color}22` : '#1A1A1A',
+                borderColor: active ? color : '#2A2A2A',
+                color: active ? color : '#A0A0A0',
+              }}
+            >
               {label}
-            </span>
-          </button>
-        )
-      })}
+            </button>
+          )
+        })}
+      </div>
     </div>
   )
 }
@@ -78,18 +94,11 @@ function ContentRow({ title, seeAllHref, loading, children, empty, emptyIcon, em
           {Array.from({ length: 4 }).map((_, i) => <FeedCardSkeleton key={i} />)}
         </div>
       ) : empty ? (
-        <div
-          className="rounded-xl border p-8 text-center"
-          style={{ backgroundColor: '#1A1A1A', borderColor: '#2A2A2A' }}
-        >
+        <div className="rounded-xl border p-8 text-center" style={{ backgroundColor: '#1A1A1A', borderColor: '#2A2A2A' }}>
           {emptyIcon && <div className="flex justify-center mb-3 opacity-20">{emptyIcon}</div>}
           <p className="text-[#A0A0A0] text-sm mb-4">{emptyMessage ?? 'Nothing here yet.'}</p>
           {emptyCTA && (
-            <Link
-              href={emptyCTA.href}
-              className="inline-flex items-center gap-2 font-semibold text-sm px-5 py-2.5 rounded-full transition-all hover:scale-105 text-black"
-              style={{ backgroundColor: '#1DB954' }}
-            >
+            <Link href={emptyCTA.href} className="inline-flex items-center gap-2 font-semibold text-sm px-5 py-2.5 rounded-full transition-all hover:scale-105 text-black" style={{ backgroundColor: '#1DB954' }}>
               {emptyCTA.label}
             </Link>
           )}
@@ -101,19 +110,47 @@ function ContentRow({ title, seeAllHref, loading, children, empty, emptyIcon, em
   )
 }
 
-// ─── Genre filter for musicians ───────────────────────────────────────────────
-function filterM(items: FeedMusician[], genre: string): FeedMusician[] {
-  if (genre === 'all') return items
-  return items.filter(m => m.genre?.some(g => normalizeGenre(g) === genre))
+// ─── Shared layout ────────────────────────────────────────────────────────────
+interface FeedLayoutProps {
+  greeting: string
+  tagline: string
+  loading: boolean
+  heroProfiles: HeroProfile[]
+  role: string | undefined
+  selectedGenre: string
+  onGenreSelect: (g: string) => void
+  children: ReactNode
 }
 
-// ─── Role-aware hero profiles ─────────────────────────────────────────────────
-function toHeroMusician(m: FeedMusician): HeroProfile {
-  return { id: m.id, name: m.stage_name ?? 'Artist', bio: m.bio, genre: m.genre, city: m.city, state: m.state, type: 'musician', profile_image: m.profile_image, is_available: m.is_available, hourly_rate: m.hourly_rate }
-}
+function FeedLayout({ greeting, tagline, loading, heroProfiles, role, selectedGenre, onGenreSelect, children }: FeedLayoutProps) {
+  return (
+    <>
+      <Head><title>Discover | BandBridge</title></Head>
+      <div className="min-h-screen pb-20" style={{ backgroundColor: '#0D0D0D', paddingTop: '80px' }}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
-function toHeroVenue(v: FeedVenue): HeroProfile {
-  return { id: v.id, name: v.name ?? 'Venue', bio: v.bio, genre: null, city: v.city, state: v.state, type: 'venue', profile_image: v.profile_image }
+          <div className="pt-6 pb-5">
+            <h1 className="font-playfair font-black text-2xl sm:text-3xl text-[#F0F0F0]">{greeting}</h1>
+            <p className="text-[#A0A0A0] text-sm mt-1 font-space-mono">{tagline}</p>
+          </div>
+
+          {/* Hero */}
+          {loading ? (
+            <div className="skeleton-shimmer rounded-2xl mb-8" style={{ height: 'min(70vh, 580px)', minHeight: '380px' }} />
+          ) : heroProfiles.length > 0 ? (
+            <div className="mb-8">
+              <HeroPanel profiles={heroProfiles} role={role} />
+            </div>
+          ) : null}
+
+          {/* Genre filter — parent has overflow:visible so rotation is never clipped */}
+          <GenreFilter selected={selectedGenre} onSelect={onGenreSelect} />
+
+          <div className="space-y-12">{children}</div>
+        </div>
+      </div>
+    </>
+  )
 }
 
 // ─── Main feed ────────────────────────────────────────────────────────────────
@@ -127,7 +164,7 @@ export default function LoggedInFeed() {
   const [selectedGenre, setSelectedGenre] = useState('all')
   const [userCity, setUserCity] = useState('')
 
-  // Fetch the logged-in user's city from their profile for "Near You" rows
+  // Fetch the user's city from their profile for "Near You" rows
   useEffect(() => {
     if (!user || !userRole) return
     const table = userRole === 'musician' ? 'musicians' : userRole === 'venue' ? 'venues' : 'event_hosts'
@@ -136,53 +173,67 @@ export default function LoggedInFeed() {
     })
   }, [user, userRole])
 
-  // Fetch feed data — re-fetches when city resolves but not on genre change (filtered client-side)
+  // Fetch feed — only re-fetches when city changes; genre is filtered client-side
   useEffect(() => {
     if (!user) return
     const params = new URLSearchParams({ city: userCity })
     setLoading(true)
     fetch(`/api/feed?${params}`)
       .then(r => r.json())
-      .then((data: FeedData) => { setFeedData(data); setLoading(false) })
+      .then((d: FeedData) => { setFeedData(d); setLoading(false) })
       .catch(() => setLoading(false))
   }, [user, userCity])
 
-  // Build role-aware hero profiles
+  // ── Merge API data with demo fallbacks ──────────────────────────────────────
+  const data = {
+    featured: {
+      musicians: fallback(feedData?.featured.musicians ?? [], DEMO_MUSICIANS.filter(m => m.bio).slice(0, 5)),
+      venues:    fallback(feedData?.featured.venues ?? [],    DEMO_VENUES),
+    },
+    musicians: {
+      all:      fallback(feedData?.musicians.all ?? [],      DEMO_MUSICIANS),
+      nearYou:  fallback(feedData?.musicians.nearYou ?? [],  DEMO_MUSICIANS),
+      withMedia: fallback(feedData?.musicians.withMedia ?? [], DEMO_MUSICIANS_WITH_MEDIA),
+      trending: fallback(feedData?.musicians.trending ?? [], DEMO_MUSICIANS.slice(0, 6)),
+    },
+    venues: {
+      all:      fallback(feedData?.venues.all ?? [],      DEMO_VENUES),
+      nearYou:  fallback(feedData?.venues.nearYou ?? [],  DEMO_VENUES),
+      trending: fallback(feedData?.venues.trending ?? [], DEMO_VENUES),
+    },
+  }
+
+  // ── Hero profiles — role-aware ──────────────────────────────────────────────
   const heroProfiles: HeroProfile[] = (() => {
-    if (!feedData) return []
-    if (userRole === 'musician') return feedData.featured.venues.map(toHeroVenue)
-    if (userRole === 'venue')    return feedData.featured.musicians.map(toHeroMusician)
-    // host: mix musicians + venues alternating
-    const mix: HeroProfile[] = []
-    const m = feedData.featured.musicians.map(toHeroMusician)
-    const v = feedData.featured.venues.map(toHeroVenue)
-    for (let i = 0; i < 5; i++) {
-      if (i % 2 === 0 && m[Math.floor(i / 2)]) mix.push(m[Math.floor(i / 2)])
-      else if (v[Math.floor(i / 2)]) mix.push(v[Math.floor(i / 2)])
-    }
-    return mix.slice(0, 5)
+    if (userRole === 'musician') return data.featured.venues.map(toHeroVenue)
+    if (userRole === 'venue')    return data.featured.musicians.map(toHeroMusician)
+    // host: interleave musicians and venues
+    const m = data.featured.musicians.map(toHeroMusician)
+    const v = data.featured.venues.map(toHeroVenue)
+    return Array.from({ length: 5 }, (_, i) => (i % 2 === 0 ? m[Math.floor(i / 2)] : v[Math.floor(i / 2)])).filter(Boolean) as HeroProfile[]
   })()
 
-  // Greeting that changes by time of day
+  // ── Greeting ──────────────────────────────────────────────────────────────
   const hour = new Date().getHours()
-  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening'
-  const greetingText = firstName ? `${greeting}, ${firstName}` : greeting
+  const timeGreeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening'
+  const greeting = firstName ? `${timeGreeting}, ${firstName}` : timeGreeting
+  const tagline = userRole === 'musician' ? '// your stage is waiting' : userRole === 'venue' ? '// find your next artist' : '// discover the perfect sound'
 
   // ── MUSICIAN ROWS ──────────────────────────────────────────────────────────
   if (userRole === 'musician') {
-    const nearVenues = feedData?.venues.nearYou ?? []
-    const allVenues = feedData?.venues.all ?? []
-    const trendingVenues = feedData?.venues.trending ?? []
-    const musicMedia = filterM(feedData?.musicians.withMedia ?? [], selectedGenre)
+    const nearVenues   = data.venues.nearYou
+    const allVenues    = data.venues.all
+    const trendVenues  = data.venues.trending
+    const musicMedia   = filterM(data.musicians.withMedia, selectedGenre)
 
     return (
-      <FeedLayout greeting={greetingText} role={userRole} loading={loading} feedData={feedData} heroProfiles={heroProfiles} selectedGenre={selectedGenre} onGenreSelect={setSelectedGenre}>
+      <FeedLayout greeting={greeting} tagline={tagline} loading={loading} heroProfiles={heroProfiles} role={userRole} selectedGenre={selectedGenre} onGenreSelect={setSelectedGenre}>
         <ContentRow title="Venues Near You" seeAllHref="/venues" loading={loading}
           empty={nearVenues.length === 0}
           emptyIcon={<Building2 className="w-10 h-10" />}
-          emptyMessage={userCity ? `No venues in ${userCity} yet — showing all` : 'No venues nearby yet.'}
+          emptyMessage={userCity ? `No venues in ${userCity} yet.` : 'No venues nearby.'}
         >
-          {(nearVenues.length > 0 ? nearVenues : allVenues).map(v => <VenueCard key={v.id} venue={v} />)}
+          {nearVenues.map(v => <VenueCard key={v.id} venue={v} />)}
         </ContentRow>
 
         <ContentRow title="Currently Booking" seeAllHref="/venues" loading={loading}
@@ -195,11 +246,11 @@ export default function LoggedInFeed() {
         </ContentRow>
 
         <ContentRow title="Trending Venues This Week" seeAllHref="/venues" loading={loading}
-          empty={trendingVenues.length === 0}
+          empty={trendVenues.length === 0}
           emptyIcon={<Building2 className="w-10 h-10" />}
           emptyMessage="Check back soon."
         >
-          {trendingVenues.map(v => <VenueCard key={v.id} venue={v} trending />)}
+          {trendVenues.map(v => <VenueCard key={v.id} venue={v} trending />)}
         </ContentRow>
 
         <ContentRow title="New Music / Latest Releases" seeAllHref="/musicians" loading={loading}
@@ -213,10 +264,10 @@ export default function LoggedInFeed() {
         <ContentRow title="Explore More Venues" seeAllHref="/venues" loading={loading}
           empty={allVenues.length === 0}
           emptyIcon={<Building2 className="w-10 h-10" />}
-          emptyMessage="No venues yet — add yours!"
+          emptyMessage="No venues yet."
           emptyCTA={{ label: 'List Your Venue', href: '/signup' }}
         >
-          {allVenues.slice(0, 10).map(v => <VenueCard key={v.id} venue={v} />)}
+          {allVenues.map(v => <VenueCard key={v.id} venue={v} />)}
         </ContentRow>
       </FeedLayout>
     )
@@ -224,17 +275,17 @@ export default function LoggedInFeed() {
 
   // ── VENUE ROWS ─────────────────────────────────────────────────────────────
   if (userRole === 'venue') {
-    const nearM = filterM(feedData?.musicians.nearYou ?? [], selectedGenre)
-    const allM = filterM(feedData?.musicians.all ?? [], selectedGenre)
-    const trendingM = filterM(feedData?.musicians.trending ?? [], selectedGenre)
-    const withMedia = filterM(feedData?.musicians.withMedia ?? [], selectedGenre)
+    const nearM    = filterM(data.musicians.nearYou,  selectedGenre)
+    const allM     = filterM(data.musicians.all,      selectedGenre)
+    const trendM   = filterM(data.musicians.trending, selectedGenre)
+    const withMedia = filterM(data.musicians.withMedia, selectedGenre)
 
     return (
-      <FeedLayout greeting={greetingText} role={userRole} loading={loading} feedData={feedData} heroProfiles={heroProfiles} selectedGenre={selectedGenre} onGenreSelect={setSelectedGenre}>
+      <FeedLayout greeting={greeting} tagline={tagline} loading={loading} heroProfiles={heroProfiles} role={userRole} selectedGenre={selectedGenre} onGenreSelect={setSelectedGenre}>
         <ContentRow title="Musicians Near You" seeAllHref="/musicians" loading={loading}
-          empty={nearM.length === 0}
+          empty={(nearM.length === 0 && allM.length === 0)}
           emptyIcon={<Music2 className="w-10 h-10" />}
-          emptyMessage={userCity ? `No musicians in ${userCity} yet — showing all` : 'No musicians nearby yet.'}
+          emptyMessage={userCity ? `No musicians in ${userCity} yet.` : 'No musicians nearby.'}
         >
           {(nearM.length > 0 ? nearM : allM).map(m => <MusicianCard key={m.id} musician={m} />)}
         </ContentRow>
@@ -249,14 +300,14 @@ export default function LoggedInFeed() {
         </ContentRow>
 
         <ContentRow title="Trending Musicians This Week" seeAllHref="/musicians" loading={loading}
-          empty={trendingM.length === 0}
+          empty={trendM.length === 0}
           emptyIcon={<Music2 className="w-10 h-10" />}
           emptyMessage="Check back soon for trending artists."
         >
-          {trendingM.map(m => <MusicianCard key={m.id} musician={m} trending />)}
+          {trendM.map(m => <MusicianCard key={m.id} musician={m} trending />)}
         </ContentRow>
 
-        <ContentRow title="Top Artists by Genre" seeAllHref={`/musicians`} loading={loading}
+        <ContentRow title="Top Artists by Genre" seeAllHref="/musicians" loading={loading}
           empty={allM.length === 0}
           emptyIcon={<Music2 className="w-10 h-10" />}
           emptyMessage="No artists match this genre yet."
@@ -275,22 +326,22 @@ export default function LoggedInFeed() {
     )
   }
 
-  // ── HOST ROWS ──────────────────────────────────────────────────────────────
-  const trendingM = filterM(feedData?.musicians.trending ?? [], selectedGenre)
-  const allVenues = feedData?.venues.all ?? []
-  const allM = filterM(feedData?.musicians.all ?? [], selectedGenre)
-  const trendingV = feedData?.venues.trending ?? []
-  const withMedia = filterM(feedData?.musicians.withMedia ?? [], selectedGenre)
+  // ── HOST ROWS (default) ────────────────────────────────────────────────────
+  const trendM   = filterM(data.musicians.trending, selectedGenre)
+  const allVenues = data.venues.all
+  const allM     = filterM(data.musicians.all, selectedGenre)
+  const trendV   = data.venues.trending
+  const withMedia = filterM(data.musicians.withMedia, selectedGenre)
 
   return (
-    <FeedLayout greeting={greetingText} role={userRole} loading={loading} feedData={feedData} heroProfiles={heroProfiles} selectedGenre={selectedGenre} onGenreSelect={setSelectedGenre}>
+    <FeedLayout greeting={greeting} tagline={tagline} loading={loading} heroProfiles={heroProfiles} role={userRole} selectedGenre={selectedGenre} onGenreSelect={setSelectedGenre}>
       <ContentRow title="Top Musicians This Week" seeAllHref="/musicians" loading={loading}
-        empty={trendingM.length === 0}
+        empty={trendM.length === 0}
         emptyIcon={<Music2 className="w-10 h-10" />}
         emptyMessage="No musicians yet."
         emptyCTA={{ label: 'Browse Musicians', href: '/musicians' }}
       >
-        {trendingM.map(m => <MusicianCard key={m.id} musician={m} trending />)}
+        {trendM.map(m => <MusicianCard key={m.id} musician={m} trending />)}
       </ContentRow>
 
       <ContentRow title="Available Venues" seeAllHref="/venues" loading={loading}
@@ -304,18 +355,18 @@ export default function LoggedInFeed() {
       <ContentRow title="Recently Joined Musicians" seeAllHref="/musicians" loading={loading}
         empty={allM.length === 0}
         emptyIcon={<Music2 className="w-10 h-10" />}
-        emptyMessage="No musicians yet — be the first!"
+        emptyMessage="No musicians yet."
         emptyCTA={{ label: 'Get Listed', href: '/signup' }}
       >
         {allM.map(m => <MusicianCard key={m.id} musician={m} />)}
       </ContentRow>
 
       <ContentRow title="Trending Venues" seeAllHref="/venues" loading={loading}
-        empty={trendingV.length === 0}
+        empty={trendV.length === 0}
         emptyIcon={<Building2 className="w-10 h-10" />}
         emptyMessage="No trending venues yet."
       >
-        {trendingV.map(v => <VenueCard key={v.id} venue={v} trending />)}
+        {trendV.map(v => <VenueCard key={v.id} venue={v} trending />)}
       </ContentRow>
 
       <ContentRow title="New Music / Latest Releases" seeAllHref="/musicians" loading={loading}
@@ -326,54 +377,5 @@ export default function LoggedInFeed() {
         {withMedia.map(m => <MusicianCard key={m.id} musician={m} mediaMode />)}
       </ContentRow>
     </FeedLayout>
-  )
-}
-
-// ─── Shared layout wrapper ────────────────────────────────────────────────────
-interface FeedLayoutProps {
-  greeting: string
-  role: string | undefined
-  loading: boolean
-  feedData: FeedData | null
-  heroProfiles: HeroProfile[]
-  selectedGenre: string
-  onGenreSelect: (g: string) => void
-  children: ReactNode
-}
-
-function FeedLayout({ greeting, role, loading, heroProfiles, selectedGenre, onGenreSelect, children }: FeedLayoutProps) {
-  return (
-    <>
-      <Head>
-        <title>Discover | BandBridge</title>
-      </Head>
-      <div className="min-h-screen pb-20" style={{ backgroundColor: '#0D0D0D', paddingTop: '80px' }}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-
-          {/* Greeting */}
-          <div className="pt-6 pb-5">
-            <h1 className="font-playfair font-black text-2xl sm:text-3xl text-[#F0F0F0]">{greeting}</h1>
-            <p className="text-[#A0A0A0] text-sm mt-1 font-space-mono">
-              {role === 'musician' ? '// your stage is waiting' : role === 'venue' ? '// find your next artist' : '// discover the perfect sound'}
-            </p>
-          </div>
-
-          {/* Hero */}
-          {loading ? (
-            <div className="skeleton-shimmer rounded-2xl mb-8" style={{ height: 'min(70vh, 580px)', minHeight: '380px' }} />
-          ) : heroProfiles.length > 0 ? (
-            <div className="mb-8">
-              <HeroPanel profiles={heroProfiles} role={role} />
-            </div>
-          ) : null}
-
-          {/* Genre filter */}
-          <GenreFilter selected={selectedGenre} onSelect={onGenreSelect} />
-
-          {/* Content rows */}
-          <div className="space-y-12">{children}</div>
-        </div>
-      </div>
-    </>
   )
 }

@@ -140,6 +140,26 @@ body::after {
   flex-shrink: 0;
 }
 
+/*
+  Genre pill row: overflow-x: auto forces overflow-y to auto (not visible) per
+  CSS spec. The 24px vertical padding ensures the full 22px box-shadow blur on
+  active/hovered pills stays inside the scroll container's padding edge (the
+  actual clip boundary), so glow effects are never cropped.
+*/
+.genre-pill-row {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 24px 4px;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x mandatory;
+}
+
+.genre-pill-row > * {
+  scroll-snap-align: start;
+  flex-shrink: 0;
+}
+
 /* ─── Skeleton shimmer ──────────────────────────────────────────────────────── */
 @keyframes shimmer {
   0%   { background-position: -600px 0; }
