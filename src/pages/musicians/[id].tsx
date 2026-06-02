@@ -1,7 +1,9 @@
 import Head from 'next/head'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
-import { MapPin, Globe, Calendar, Music, ExternalLink, Play } from 'lucide-react'
+import { useState } from 'react'
+import { MapPin, Globe, Calendar, Music, ExternalLink, Play, MessageSquare } from 'lucide-react'
+import { useAuth } from '@/context/AuthContext'
 
 const MUSICIANS: Record<string, {
   id: string
@@ -41,6 +43,28 @@ export default function MusicianProfilePage() {
   const router = useRouter()
   const { id } = router.query
   const musician = (typeof id === 'string' && MUSICIANS[id]) ? MUSICIANS[id] : FALLBACK
+  const { user, session } = useAuth()
+  const [messaging, setMessaging] = useState(false)
+
+  const canMessage = !!user && user.id !== musician.id
+
+  async function handleMessage() {
+    if (!session || !canMessage || messaging) return
+    setMessaging(true)
+    try {
+      const res = await fetch('/api/messages/conversations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ other_user_id: musician.id }),
+      })
+      if (res.ok) {
+        const { id: convId } = await res.json()
+        router.push(`/messages/${convId}`)
+      }
+    } finally {
+      setMessaging(false)
+    }
+  }
 
   return (
     <>
@@ -170,6 +194,16 @@ export default function MusicianProfilePage() {
                 <Link href="/login?redirect=booking" className="block w-full bg-[#1DB954] hover:bg-[#1ed760] text-black font-bold text-center py-3.5 rounded-xl transition-all min-h-[48px] flex items-center justify-center">
                   Request Booking
                 </Link>
+                {canMessage && (
+                  <button
+                    onClick={handleMessage}
+                    disabled={messaging}
+                    className="mt-2 block w-full bg-transparent border border-white/20 hover:border-white/40 text-[#B3B3B3] hover:text-white font-semibold text-center py-3 rounded-xl transition-all min-h-[44px] flex items-center justify-center gap-2 text-sm"
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                    {messaging ? 'Opening…' : 'Message'}
+                  </button>
+                )}
                 <p className="text-[#B3B3B3] text-xs text-center mt-3">You&apos;ll need an account to book.</p>
               </div>
             </div>
@@ -206,6 +240,16 @@ export default function MusicianProfilePage() {
                 <Link href="/login?redirect=booking" className="block w-full bg-[#1DB954] hover:bg-[#1ed760] text-black font-bold text-center py-3 rounded-xl transition-all hover:scale-105">
                   Request Booking
                 </Link>
+                {canMessage && (
+                  <button
+                    onClick={handleMessage}
+                    disabled={messaging}
+                    className="mt-2 block w-full bg-transparent border border-white/20 hover:border-white/40 text-[#B3B3B3] hover:text-white font-semibold text-center py-2.5 rounded-xl transition-all flex items-center justify-center gap-2 text-sm"
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                    {messaging ? 'Opening…' : 'Message'}
+                  </button>
+                )}
                 <p className="text-[#B3B3B3] text-xs text-center mt-3">You&apos;ll need an account to book.</p>
               </div>
 

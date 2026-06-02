@@ -2,7 +2,7 @@ import Head from 'next/head'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
 import { useState, useEffect } from 'react'
-import { MapPin, Users, Globe, Phone, Mail, Building2 } from 'lucide-react'
+import { MapPin, Users, Globe, Phone, Mail, Building2, MessageSquare } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { supabase } from '@/lib/supabase'
 import BookingModal from '@/components/booking/BookingModal'
@@ -143,45 +143,101 @@ interface RealVenue {
 export default function VenueProfilePage() {
   const router = useRouter()
   const { id } = router.query
-  const { user } = useAuth()
+  const { user, session } = useAuth()
 
-  const [realVenue, setRealVenue]         = useState<RealVenue | null>(null)
-  const [musicianRate, setMusicianRate]   = useState<number | undefined>(undefined)
+  const [realVenue, setRealVenue]               = useState<RealVenue | null>(null)
+  const [musicianRate, setMusicianRate]         = useState<number | undefined>(undefined)
+  const [musicianExists, setMusicianExists]     = useState<boolean | null>(null)
   const [showBookingModal, setShowBookingModal] = useState(false)
+  const [messaging, setMessaging]               = useState(false)
 
-  // Try to load from Supabase (works for seeded venues with real UUIDs)
+  // Try to load the venue from Supabase. Works for seeded venues (real UUIDs).
+  // Mock venues ("1", "2", …) will return null — that's fine.
   useEffect(() => {
     if (typeof id !== 'string') return
-    supabase.from('venues').select('id, name, bio, city, state, capacity, website_url')
-      .eq('id', id).maybeSingle()
-      .then(({ data }) => { if (data) setRealVenue(data) })
+    supabase
+      .from('venues')
+      .select('id, name, bio, city, state, capacity, website_url')
+      .eq('id', id)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        console.log('[VenuePage] Supabase venue fetch → id:', id, 'data:', data, 'error:', error?.message)
+        if (data) setRealVenue(data)
+      })
   }, [id])
 
-  // Load musician's hourly rate for the booking modal pre-fill
+  // Verify the musician profile exists in the DB and grab the hourly rate.
+  // The metadata role might say 'musician' but the row might be missing if
+  // signup didn't complete — this check surfaces that inconsistency.
   useEffect(() => {
+    console.log('[VenuePage] user:', user?.id ?? 'none', '| role from metadata:', user?.user_metadata?.role ?? 'none')
+
     const role = user?.user_metadata?.role
-    if (!user || role !== 'musician') return
-    supabase.from('musicians').select('hourly_rate').eq('id', user.id).single()
-      .then(({ data }) => { if (data?.hourly_rate) setMusicianRate(data.hourly_rate) })
+    if (!user || role !== 'musician') { setMusicianExists(false); return }
+
+    supabase
+      .from('musicians')
+      .select('id, stage_name, hourly_rate')
+      .eq('id', user.id)
+      .single()
+      .then(({ data, error }) => {
+        console.log('[VenuePage] musician DB record → data:', data, '| error:', error?.message ?? 'none')
+        if (data) {
+          setMusicianExists(true)
+          if (data.hourly_rate) setMusicianRate(data.hourly_rate)
+        } else {
+          // Row is missing: user_metadata says musician but DB has no record.
+          // Still allow button — the role metadata is the source of truth for UI.
+          setMusicianExists(false)
+          console.warn('[VenuePage] musician row not found for user', user.id, '— profile may be incomplete')
+        }
+      })
   }, [user])
 
   const mockVenue = (typeof id === 'string' && VENUES[id]) ? VENUES[id] : FALLBACK
 
-  // Use real venue data when available, fall back to mock
+  // Prefer real Supabase data when available, fall back to mock
   const venue = realVenue
     ? {
         ...mockVenue,
-        name:       realVenue.name ?? mockVenue.name,
-        bio:        realVenue.bio  ?? mockVenue.bio,
-        city:       realVenue.city ?? mockVenue.city,
-        state:      realVenue.state ?? mockVenue.state,
-        capacity:   realVenue.capacity ?? mockVenue.capacity,
+        name:       realVenue.name       ?? mockVenue.name,
+        bio:        realVenue.bio        ?? mockVenue.bio,
+        city:       realVenue.city       ?? mockVenue.city,
+        state:      realVenue.state      ?? mockVenue.state,
+        capacity:   realVenue.capacity   ?? mockVenue.capacity,
         websiteUrl: realVenue.website_url ?? mockVenue.websiteUrl,
       }
     : mockVenue
 
   const userRole = user?.user_metadata?.role
-  const canBook  = userRole === 'musician' && !!realVenue
+
+  const venueUserId = realVenue?.id
+  const canMessage = !!user && user.id !== venueUserId
+
+  async function handleMessage() {
+    if (!session || !canMessage || messaging || !venueUserId) return
+    setMessaging(true)
+    try {
+      const res = await fetch('/api/messages/conversations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ other_user_id: venueUserId }),
+      })
+      if (res.ok) {
+        const { id: convId } = await res.json()
+        router.push(`/messages/${convId}`)
+      }
+    } finally {
+      setMessaging(false)
+    }
+  }
+
+  // Show "Request Booking" to any logged-in musician.
+  // The realVenue check is intentionally removed — the button shows regardless
+  // of whether the Supabase venue fetch resolved. For mock venues (no UUID) the
+  // booking API will return "Venue not found" which the modal surfaces gracefully.
+  const canBook = !!user && userRole === 'musician'
+
   const hasContact = (venue.showEmail && venue.email) || (venue.showPhone && venue.phone)
 
   return (
@@ -303,6 +359,16 @@ export default function VenueProfilePage() {
                     >
                       Request a Booking
                     </button>
+                    {canMessage && venueUserId && (
+                      <button
+                        onClick={handleMessage}
+                        disabled={messaging}
+                        className="mt-2 w-full flex items-center justify-center gap-2 bg-transparent border border-white/20 hover:border-white/40 text-[#B3B3B3] hover:text-white font-semibold py-2.5 rounded-xl transition-all text-sm min-h-[44px]"
+                      >
+                        <MessageSquare className="w-4 h-4" />
+                        {messaging ? 'Opening…' : 'Message'}
+                      </button>
+                    )}
                     <p className="text-[#B3B3B3] text-xs text-center mt-3">5% platform fee · Secure payment via Stripe</p>
                   </>
                 ) : userRole === 'musician' ? (
@@ -316,6 +382,16 @@ export default function VenueProfilePage() {
                       >
                         Contact Venue
                       </a>
+                    )}
+                    {canMessage && venueUserId && (
+                      <button
+                        onClick={handleMessage}
+                        disabled={messaging}
+                        className="mt-2 w-full flex items-center justify-center gap-2 bg-transparent border border-white/20 hover:border-white/40 text-[#B3B3B3] hover:text-white font-semibold py-2.5 rounded-xl transition-all text-sm min-h-[44px]"
+                      >
+                        <MessageSquare className="w-4 h-4" />
+                        {messaging ? 'Opening…' : 'Message'}
+                      </button>
                     )}
                   </>
                 ) : (
@@ -364,10 +440,10 @@ export default function VenueProfilePage() {
         </div>
       </div>
 
-      {showBookingModal && realVenue && (
+      {showBookingModal && user && (
         <BookingModal
-          venueId={realVenue.id}
-          venueName={realVenue.name ?? venue.name}
+          venueId={realVenue?.id ?? (typeof id === 'string' ? id : '')}
+          venueName={realVenue?.name ?? venue.name}
           defaultRate={musicianRate}
           onClose={() => setShowBookingModal(false)}
           onSuccess={() => {

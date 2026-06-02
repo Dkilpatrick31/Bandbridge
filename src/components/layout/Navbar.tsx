@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Music2, Menu, X, Bell, MessageSquare, User, LogOut } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
+import MessagesDropdown from "@/components/messages/MessagesDropdown";
 
 const NAV_LINKS = [
   { href: "/musicians", label: "Find Musicians" },
@@ -15,10 +16,11 @@ type Dropdown = 'messages' | 'notifications'
 
 export default function Navbar() {
   const router = useRouter()
-  const { user, signOut } = useAuth()
+  const { user, session, signOut } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
   const [openDropdown, setOpenDropdown] = useState<Dropdown | null>(null)
   const [unreadNotifCount, setUnreadNotifCount] = useState(0)
+  const [unreadMsgCount, setUnreadMsgCount] = useState(0)
   const containerRef = useRef<HTMLDivElement>(null)
 
   const firstName = (user?.user_metadata?.first_name as string | undefined) ?? ''
@@ -36,7 +38,7 @@ export default function Navbar() {
     setOpenDropdown(prev => prev === name ? null : name)
   }
 
-  // Click-away closes dropdowns
+  // Click-away closes dropdowns (desktop only — mobile has its own backdrop)
   useEffect(() => {
     if (!openDropdown) return
     function handleClick(e: MouseEvent) {
@@ -59,6 +61,44 @@ export default function Navbar() {
       .then(({ count, error }) => {
         if (!error) setUnreadNotifCount(count ?? 0)
       })
+  }, [user])
+
+  // Initial unread message count fetch
+  const fetchUnreadMsgCount = useCallback(async () => {
+    if (!session) return
+    const res = await fetch('/api/messages/conversations', {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    })
+    if (!res.ok) return
+    const data = await res.json()
+    const total = data.reduce((s: number, c: { unread_count: number }) => s + c.unread_count, 0)
+    setUnreadMsgCount(total)
+  }, [session])
+
+  useEffect(() => {
+    if (!session) { setUnreadMsgCount(0); return }
+    fetchUnreadMsgCount()
+  }, [session, fetchUnreadMsgCount])
+
+  // Realtime subscription — increment badge when a new message arrives from someone else
+  useEffect(() => {
+    if (!user) return
+
+    const channel = supabase
+      .channel(`navbar-msgs-${user.id}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages' },
+        (payload) => {
+          const msg = payload.new as { sender_id: string }
+          if (msg.sender_id !== user.id) {
+            setUnreadMsgCount(prev => prev + 1)
+          }
+        }
+      )
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
   }, [user])
 
   const iconBtn = (active: boolean) =>
@@ -119,31 +159,20 @@ export default function Navbar() {
                 <div className="relative">
                   <button
                     onClick={() => toggleDropdown('messages')}
-                    className={iconBtn(openDropdown === 'messages')}
+                    className={`${iconBtn(openDropdown === 'messages')} relative`}
                     title="Messages"
                   >
                     <MessageSquare className="w-5 h-5" />
+                    {unreadMsgCount > 0 && (
+                      <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full" />
+                    )}
                   </button>
 
                   {openDropdown === 'messages' && (
-                    <div className="absolute right-0 top-full mt-2 w-80 bg-[#1E1E1E] border border-white/10 rounded-2xl shadow-2xl shadow-black/60 z-50 overflow-hidden">
-                      <div className="px-4 py-3 border-b border-white/5">
-                        <h3 className="text-white font-semibold text-sm">Messages</h3>
-                      </div>
-                      <div className="py-10 text-center">
-                        <MessageSquare className="w-8 h-8 text-[#B3B3B3]/20 mx-auto mb-2" />
-                        <p className="text-[#B3B3B3] text-sm">No messages yet</p>
-                      </div>
-                      <div className="border-t border-white/5 px-4 py-3">
-                        <Link
-                          href="/messages"
-                          onClick={() => setOpenDropdown(null)}
-                          className="text-[#1DB954] text-sm font-medium hover:underline"
-                        >
-                          View All Messages →
-                        </Link>
-                      </div>
-                    </div>
+                    <MessagesDropdown
+                      onClose={() => setOpenDropdown(null)}
+                      onUnreadCountChange={(n) => setUnreadMsgCount(n)}
+                    />
                   )}
                 </div>
 
@@ -243,8 +272,11 @@ export default function Navbar() {
                 Dashboard
               </Link>
               <Link href="/messages" onClick={() => setMenuOpen(false)}
-                className="min-h-[44px] flex items-center text-[#B3B3B3] text-sm font-medium border-b border-white/5">
-                Messages
+                className="min-h-[44px] flex items-center justify-between text-[#B3B3B3] text-sm font-medium border-b border-white/5">
+                <span>Messages</span>
+                {unreadMsgCount > 0 && (
+                  <span className="bg-red-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full">{unreadMsgCount}</span>
+                )}
               </Link>
               <Link href="/notifications" onClick={() => setMenuOpen(false)}
                 className="min-h-[44px] flex items-center justify-between text-[#B3B3B3] text-sm font-medium border-b border-white/5">
