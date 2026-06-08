@@ -7,13 +7,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const user = await getApiUser(req)
   if (!user) return res.status(401).json({ error: 'Unauthorized' })
 
-  const { data, error } = await supabaseAdmin
-    .from('bookings')
-    .select('*, musicians(stage_name, city, state, genre, hourly_rate)')
-    .eq('venue_id', user.id)
-    .order('event_date', { ascending: false })
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('bookings')
+      .select('*, musicians(stage_name, city, state, genre, hourly_rate)')
+      .eq('venue_id', user.id)
+      .order('event_date', { ascending: false })
 
-  if (error) return res.status(500).json({ error: error.message })
-
-  return res.status(200).json(data ?? [])
+    if (error) return res.status(500).json({ error: error.message })
+    return res.status(200).json(data ?? [])
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unexpected error'
+    return res.status(500).json({ error: message })
+  }
 }

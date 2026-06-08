@@ -1,20 +1,17 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
-import { createClient } from '@supabase/supabase-js'
 import { randomUUID } from 'crypto'
+import { supabaseAdmin } from '@/lib/apiAuth'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
-
-const SEED_SECRET = 'bandbridge-seed'
+// Guard: set SEED_DEMO_SECRET in your environment to a long random string.
+// Leaving it unset disables the endpoint entirely (returns 401).
+const SEED_SECRET = process.env.SEED_DEMO_SECRET ?? ''
 
 function demoEmail(slug: string) {
   return `demo.${slug}@bandbridge.demo`
 }
 
 async function ensureAuthUserId(email: string, role: string): Promise<string> {
-  const { data, error } = await supabase.auth.admin.createUser({
+  const { data, error } = await supabaseAdmin.auth.admin.createUser({
     email,
     email_confirm: true,
     password: randomUUID(),
@@ -23,7 +20,7 @@ async function ensureAuthUserId(email: string, role: string): Promise<string> {
   if (data?.user) return data.user.id
 
   // Email already registered — locate via listUsers
-  const { data: list } = await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 })
+  const { data: list } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 })
   const found = list?.users?.find(u => u.email === email)
   if (found) return found.id
   throw new Error(`Cannot resolve user for ${email}: ${error?.message}`)
@@ -153,7 +150,7 @@ const VENUES = [
 type SeedResult = { name: string; status: 'created' | 'exists' | 'error'; error?: string }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.query.secret !== SEED_SECRET) {
+  if (!SEED_SECRET || req.query.secret !== SEED_SECRET) {
     return res.status(401).json({ error: 'Unauthorized' })
   }
   if (req.method !== 'GET' && req.method !== 'POST') return res.status(405).end()
@@ -163,7 +160,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   for (const { slug, ...m } of MUSICIANS) {
     try {
-      const { data: existing } = await supabase
+      const { data: existing } = await supabaseAdmin
         .from('musicians')
         .select('id')
         .eq('stage_name', m.stage_name)
@@ -175,7 +172,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       const userId = await ensureAuthUserId(demoEmail(slug), 'musician')
-      const { error } = await supabase.from('musicians').insert({ id: userId, ...m })
+      const { error } = await supabaseAdmin.from('musicians').insert({ id: userId, ...m })
       if (error) throw error
       musicians.push({ name: m.stage_name, status: 'created' })
     } catch (e: unknown) {
@@ -185,7 +182,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   for (const { slug, ...v } of VENUES) {
     try {
-      const { data: existing } = await supabase
+      const { data: existing } = await supabaseAdmin
         .from('venues')
         .select('id')
         .eq('name', v.name)
@@ -197,7 +194,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       const userId = await ensureAuthUserId(demoEmail(slug), 'venue')
-      const { error } = await supabase.from('venues').insert({ id: userId, ...v })
+      const { error } = await supabaseAdmin.from('venues').insert({ id: userId, ...v })
       if (error) throw error
       venues.push({ name: v.name, status: 'created' })
     } catch (e: unknown) {

@@ -87,12 +87,19 @@ export default function MusicianBookingsPanel({ initialTab }: Props) {
     setCancelling(id)
     try {
       const { data: { session } } = await supabase.auth.getSession()
-      await fetch(`/api/bookings/${id}/status`, {
+      const res = await fetch(`/api/bookings/${id}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
         body: JSON.stringify({ status: 'cancelled' }),
       })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        setError(body.error ?? 'Failed to cancel booking')
+        return
+      }
       await fetchBookings()
+    } catch {
+      setError('Failed to cancel booking')
     } finally {
       setCancelling(null)
     }

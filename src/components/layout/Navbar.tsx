@@ -221,6 +221,7 @@ export default function Navbar() {
                   onClick={handleSignOut}
                   className="flex items-center gap-1.5 bg-[#1E1E1E] hover:bg-[#282828] border border-white/10 text-[#B3B3B3] hover:text-white text-sm font-medium px-3 py-2 rounded-full transition-all min-h-[44px] ml-1"
                   title="Log Out"
+                  aria-label="Log out"
                 >
                   <LogOut className="w-4 h-4" />
                 </button>

@@ -269,12 +269,14 @@ export default function MessagesDropdown({ onClose, onUnreadCountChange, openCon
                   onClick={() => { onClose(); router.push('/musicians') }}
                   className="p-2 text-[#B3B3B3] hover:text-white hover:bg-white/5 rounded-lg transition-colors"
                   title="New message"
+                  aria-label="Start a new conversation"
                 >
                   <Pencil className="w-4 h-4" />
                 </button>
                 <button
                   onClick={onClose}
                   className="p-2 text-[#B3B3B3] hover:text-white hover:bg-white/5 rounded-lg transition-colors md:hidden"
+                  aria-label="Close messages"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -285,6 +287,7 @@ export default function MessagesDropdown({ onClose, onUnreadCountChange, openCon
               <button
                 onClick={backToInbox}
                 className="p-1.5 text-[#B3B3B3] hover:text-white hover:bg-white/5 rounded-lg transition-colors -ml-1"
+                aria-label="Back to inbox"
               >
                 <ArrowLeft className="w-4 h-4" />
               </button>
@@ -298,6 +301,7 @@ export default function MessagesDropdown({ onClose, onUnreadCountChange, openCon
                 }}
                 className="p-1.5 text-[#B3B3B3] hover:text-white hover:bg-white/5 rounded-lg transition-colors flex-shrink-0"
                 title="Open full view"
+                aria-label="Open conversation in full view"
               >
                 {/* "open in new tab" style icon: square with arrow pointing to top-right corner */}
                 <svg
@@ -430,6 +434,7 @@ export default function MessagesDropdown({ onClose, onUnreadCountChange, openCon
                 onClick={sendMessage}
                 disabled={!draft.trim() || sending}
                 className="w-10 h-10 flex-shrink-0 rounded-xl bg-[#1DB954] disabled:bg-[#1DB954]/30 hover:bg-[#1ed760] disabled:cursor-not-allowed text-black flex items-center justify-center transition-colors"
+                aria-label="Send message"
               >
                 <Send className="w-4 h-4" />
               </button>

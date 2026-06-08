@@ -9,21 +9,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const { conversationId } = req.query as { conversationId: string }
 
-  const { data: conv } = await supabaseAdmin
-    .from('conversations')
-    .select('id')
-    .eq('id', conversationId)
-    .or(`participant_one_id.eq.${user.id},participant_two_id.eq.${user.id}`)
-    .maybeSingle()
+  try {
+    const { data: conv } = await supabaseAdmin
+      .from('conversations')
+      .select('id')
+      .eq('id', conversationId)
+      .or(`participant_one_id.eq.${user.id},participant_two_id.eq.${user.id}`)
+      .maybeSingle()
 
-  if (!conv) return res.status(403).json({ error: 'Not found' })
+    if (!conv) return res.status(403).json({ error: 'Not found' })
 
-  await supabaseAdmin
-    .from('messages')
-    .update({ read: true })
-    .eq('conversation_id', conversationId)
-    .neq('sender_id', user.id)
-    .eq('read', false)
+    const { error } = await supabaseAdmin
+      .from('messages')
+      .update({ read: true })
+      .eq('conversation_id', conversationId)
+      .neq('sender_id', user.id)
+      .eq('read', false)
 
-  return res.json({ ok: true })
+    if (error) return res.status(500).json({ error: error.message })
+    return res.json({ ok: true })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unexpected error'
+    return res.status(500).json({ error: message })
+  }
 }

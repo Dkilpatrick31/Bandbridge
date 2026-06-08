@@ -90,12 +90,19 @@ export default function VenueBookingsPanel({ initialTab }: Props) {
     setActing(id + ':' + status)
     try {
       const { data: { session } } = await supabase.auth.getSession()
-      await fetch(`/api/bookings/${id}/status`, {
+      const res = await fetch(`/api/bookings/${id}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
         body: JSON.stringify({ status }),
       })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        setError(body.error ?? 'Failed to update booking')
+        return
+      }
       await fetchBookings()
+    } catch {
+      setError('Failed to update booking')
     } finally {
       setActing(null)
     }

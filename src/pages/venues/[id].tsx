@@ -160,8 +160,7 @@ export default function VenueProfilePage() {
       .select('id, name, bio, city, state, capacity, website_url')
       .eq('id', id)
       .maybeSingle()
-      .then(({ data, error }) => {
-        console.log('[VenuePage] Supabase venue fetch → id:', id, 'data:', data, 'error:', error?.message)
+      .then(({ data }) => {
         if (data) setRealVenue(data)
       })
   }, [id])
@@ -170,8 +169,6 @@ export default function VenueProfilePage() {
   // The metadata role might say 'musician' but the row might be missing if
   // signup didn't complete — this check surfaces that inconsistency.
   useEffect(() => {
-    console.log('[VenuePage] user:', user?.id ?? 'none', '| role from metadata:', user?.user_metadata?.role ?? 'none')
-
     const role = user?.user_metadata?.role
     if (!user || role !== 'musician') { setMusicianExists(false); return }
 
@@ -180,16 +177,12 @@ export default function VenueProfilePage() {
       .select('id, stage_name, hourly_rate')
       .eq('id', user.id)
       .single()
-      .then(({ data, error }) => {
-        console.log('[VenuePage] musician DB record → data:', data, '| error:', error?.message ?? 'none')
+      .then(({ data }) => {
         if (data) {
           setMusicianExists(true)
           if (data.hourly_rate) setMusicianRate(data.hourly_rate)
         } else {
-          // Row is missing: user_metadata says musician but DB has no record.
-          // Still allow button — the role metadata is the source of truth for UI.
           setMusicianExists(false)
-          console.warn('[VenuePage] musician row not found for user', user.id, '— profile may be incomplete')
         }
       })
   }, [user])

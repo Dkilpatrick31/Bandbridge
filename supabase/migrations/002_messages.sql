@@ -75,6 +75,17 @@ CREATE POLICY "Recipients update read status"
     )
   );
 
+-- ── Indexes ──────────────────────────────────────────────────────────────────
+-- Speeds up participant lookups, message thread fetches, and unread counts.
+
+CREATE INDEX IF NOT EXISTS idx_conversations_participant_one ON conversations(participant_one_id);
+CREATE INDEX IF NOT EXISTS idx_conversations_participant_two ON conversations(participant_two_id);
+CREATE INDEX IF NOT EXISTS idx_conversations_last_message_at ON conversations(last_message_at DESC NULLS LAST);
+CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON messages(conversation_id);
+CREATE INDEX IF NOT EXISTS idx_messages_sender_id ON messages(sender_id);
+CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at);
+CREATE INDEX IF NOT EXISTS idx_messages_unread ON messages(conversation_id, sender_id, read) WHERE read = false;
+
 -- ── Realtime ──────────────────────────────────────────────────────────────────
 -- Required for postgres_changes subscriptions.
 
